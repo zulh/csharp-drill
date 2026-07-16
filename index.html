@@ -229,6 +229,12 @@
     overflow-x: auto; color: var(--ink);
   }
   .prose pre code { background: none; border: 0; padding: 0; color: inherit; font-size: 13px; }
+  .prose ul.notes { margin: 2px 0 14px; padding-left: 1.2em; }
+  .prose ul.notes > li { margin: 0 0 9px; padding-left: 4px; }
+  .prose ul.notes > li::marker { color: var(--accent); }
+  .prose ul.sub { margin: 7px 0 7px; padding-left: 1.1em; list-style: none; }
+  .prose ul.sub > li { margin: 0 0 5px; color: var(--muted); font-size: .93em; position: relative; }
+  .prose ul.sub > li::before { content: "\2013"; position: absolute; left: -1em; color: var(--faint); }
 
   /* ── Controls ───────────────────────────────────────── */
   .controls { margin-top: 26px; }
@@ -367,6 +373,7 @@
      ════════════════════════════════════════════════════════ */
 
   var CATS = {
+    behav: "Behavioral & Fit",
     lang:  "C# Language",
     oop:   "OOP & SOLID",
     async: "Async & Threading",
@@ -460,7 +467,59 @@
 
     { id:"r-why", cat:"exp",
       prompt:"Why do you want to go back to C#/.NET after years in Angular/Node?",
-      a:"I'll be honest about the timeline: my heaviest hands-on .NET was 2018 to 2023, and recently I've been leading Angular and Node work. But two things make this a *return*, not a leap.\n\nFirst, the **fundamentals never left** — the OOP and SOLID thinking, async, DI, clean layering — I've been applying every one of those in TypeScript daily. The mental model is identical; it's the syntax I'm refreshing, not the concepts.\n\nSecond, it's a **deliberate choice**. Strongly-typed, backend-heavy, transactional systems are the work I do best and enjoy most — the payments and issuance work I'm proudest of is exactly that shape. .NET is where I want to go deep again, and I've been actively rebuilding the muscle memory rather than waiting to be handed it." }
+      a:"I'll be honest about the timeline: my heaviest hands-on .NET was 2018 to 2023, and recently I've been leading Angular and Node work. But two things make this a *return*, not a leap.\n\nFirst, the **fundamentals never left** — the OOP and SOLID thinking, async, DI, clean layering — I've been applying every one of those in TypeScript daily. The mental model is identical; it's the syntax I'm refreshing, not the concepts.\n\nSecond, it's a **deliberate choice**. Strongly-typed, backend-heavy, transactional systems are the work I do best and enjoy most — the payments and issuance work I'm proudest of is exactly that shape. .NET is where I want to go deep again, and I've been actively rebuilding the muscle memory rather than waiting to be handed it." },
+
+    { id:"b-about", cat:"behav",
+      prompt:"Tell me about yourself.",
+      a:"**Frame it Now → Past → Why here. Aim for ~90 seconds, then stop and let them dig in.**\n\n- **Now** — full-stack engineer, ~9 years; currently leading front-end and Node.js at Senang.io, an insurtech; I run a cross-functional team of 9 and mentor 3 junior developers\n- **Past** — my heaviest hands-on .NET was 2018–2023: backend, APIs, transactional systems; that's the foundation everything since is built on\n- **What I'm known for** — payments and insurance: shipped the Touch 'n Go eWallet Mini Program, built FPX / QR / card flows via PayNet, and made policy issuance safe under retries with idempotency and reconciliation\n- **Why here** — I'm deliberately coming back to .NET and backend; the strongly-typed, transactional work is what I do best and enjoy most, and this role is exactly that\n- *End on the role, not on yourself — it invites the next question.*" },
+
+    { id:"b-leave", cat:"behav",
+      prompt:"Why are you looking to leave / why are you on the market?",
+      a:"**Stay positive — never bad-mouth Senang. Frame it as moving toward something, not away.**\n\n- Grateful for the growth here: I led a cross-functional team end-to-end and owned payments from design to production\n- What I'm looking for next: deeper backend and .NET focus, and a bigger technical challenge in a product I can grow with\n- This is about direction, not escape — I want to go deep in the work I'm strongest at\n- *If pushed on negatives, keep it about fit and growth, never people or grievances.*" },
+
+    { id:"b-whyrole", cat:"behav",
+      prompt:"Why this role / why do you want to work here?",
+      a:"**Tie your genuine motivation to something specific about them.**\n\n- Honest core: my strongest, most enjoyable work is strongly-typed backend and transactional systems — this role is squarely that\n- The fundamentals never left me — OOP, SOLID, async, DI — I apply them daily in TypeScript, so this is a refresh, not a relearn\n- It's a deliberate choice to return to .NET, and I've been actively rebuilding the muscle memory\n- **Company hook** — connect to their domain/product (e.g. for a stockbroking or SaaS firm: real-money, reliability-critical systems are exactly the shape of work I'm proud of)\n- *Do 5 minutes of homework on the company so this line is specific, not generic.*" },
+
+    { id:"b-strength", cat:"behav",
+      prompt:"What's your greatest strength?",
+      a:"**Pick one strength, back it with a concrete result.**\n\n- Shipping reliable systems in high-stakes domains — payments and insurance, where 'mostly works' isn't acceptable\n- Proof: I made policy issuance idempotent so retries were safe **by design, not by luck** — killed duplicate issuance\n- Bonus dimension: I bridge engineering and business — leading a team of 9 across dev, BA, QA and DevOps, I translate between them and the code\n- *One strength told well beats three listed.*" },
+
+    { id:"b-weak", cat:"behav",
+      prompt:"What's your biggest weakness?",
+      a:"**Give a real one + what you're actively doing about it. Avoid humble-brags like 'I work too hard'.**\n\n- I've tended to hold too much context myself instead of delegating — it comes from caring about production safety\n- What I'm doing about it: mentoring 3 juniors, writing things down, and deliberately letting the team own more\n- The payoff: I've grown from a strong individual contributor into more of a **multiplier** for the team\n- *The structure matters more than the flaw: real weakness → concrete action → result.*" },
+
+    { id:"b-lead", cat:"behav",
+      prompt:"Describe your leadership style / a time you led a team.",
+      a:"**Show ownership and how you grow people, not just that you 'managed'.**\n\n- I lead a team of 9 — developers, business analysts, QA and DevOps — and mentor 3 juniors directly\n- Style: lead by example on code quality and production safety first, then hand over real ownership\n- Concrete: I coached the juniors on writing safe, idempotent code and reviewing for edge cases before they hit production\n- Outcome: the team shipped payments and issuance to production reliably, and the juniors grew into owning their areas" },
+
+    { id:"b-conflict", cat:"behav",
+      prompt:"Tell me about a conflict or disagreement at work.",
+      a:"**Pick a technical disagreement resolved with data, not ego. STAR-shaped.**\n\n- **Situation** — a disagreement on handling duplicate messages: a quick patch versus doing proper idempotency\n- **Action** — I laid out the actual failure case (double issuance = a financial and compliance risk), proposed the atomic check-and-write, and we agreed on a plan together\n- **Result** — we shipped the robust fix; the relationship stayed good because I kept it about the risk, not about who was right\n- *The lesson to voice: disagree on the idea, align on the goal.*" },
+
+    { id:"b-fail", cat:"behav",
+      prompt:"Tell me about a failure or mistake.",
+      a:"**Own a real one, then show the lesson and the safeguard. Never 'I have no failures'.**\n\n- Take a genuine production issue — e.g. an assumption about retries I didn't fully verify up front, which surfaced under load\n- What I did: fixed it, then added the safeguard (idempotency + monitoring) and turned it into a **reusable pattern** so it couldn't recur\n- Lesson: design for the failure case from the start, especially in money-handling code\n- *Interviewers want accountability + growth, not a spotless record.*" },
+
+    { id:"b-5yr", cat:"behav",
+      prompt:"Where do you see yourself in 5 years?",
+      a:"**Show ambition that grows WITH the company, not past it.**\n\n- Growing into a senior/lead .NET engineer with deep backend and architecture ownership\n- Ideally technical leadership — mentoring, setting standards — **without leaving code behind**\n- Staying in domains where reliability matters (fintech / insurance)\n- *Avoid 'I want your job' or anything that sounds like a stepping stone.*" },
+
+    { id:"b-hireyou", cat:"behav",
+      prompt:"Why should we hire you?",
+      a:"**A tight closing pitch — 4 beats, confident, not arrogant.**\n\n- 9 years shipping real, high-stakes systems end-to-end\n- Strong fundamentals that transfer directly to .NET, plus proven delivery in payments and insurance\n- I lead technically and mentor — I lift the whole team, not just my own output\n- Genuinely motivated to go deep in .NET — this is the direction I chose, not a fallback" },
+
+    { id:"b-salary", cat:"behav",
+      prompt:"What are your salary expectations?",
+      a:"**Deflect gently if it's early; anchor on value; never undersell.**\n\n- If asked too early: 'I'd like to understand the role and scope first, but I'm confident we can land on something fair'\n- If pushed: give a **researched range** based on market rate and your 9 years — keep it a range, not a single number\n- Anchor on the value you deliver, and signal you're flexible for the right fit\n- **Know your floor beforehand** so you never get talked below it\n- *For a recruiter's first screen, a range is expected — it saves everyone's time.*" },
+
+    { id:"b-questions", cat:"behav",
+      prompt:"Do you have any questions for us?",
+      a:"**Always have 3–4 ready. Asking good questions is itself a strong signal.**\n\n- What does success in this role look like in the first 6–12 months?\n- What's the team structure, and the tech stack in practice — .NET version, cloud, CI/CD?\n- How does the team handle testing, code review and production reliability?\n- What are the biggest technical challenges the team is facing right now?\n- *Pick based on who you're talking to — a manager gets team/role questions, an engineer gets technical ones.*" },
+
+    { id:"b-pressure", cat:"behav",
+      prompt:"How do you handle pressure or tight deadlines?",
+      a:"**Show a system, not just 'I stay calm'.**\n\n- Prioritise ruthlessly — separate what genuinely must ship from what can wait\n- Communicate early — flag risk before it's a fire, not after\n- Lean on process — safe deploys and tests, so speed doesn't cost reliability\n- Example: launching payments under a deadline, I protected correctness (idempotency) while keeping pace" }
   ];
 
   var QUIZ = [
@@ -650,14 +709,36 @@
       if (i % 2 === 1) {
         out += "<pre><code>" + esc(parts[i].replace(/^\n/, "").replace(/\n$/, "")) + "</code></pre>";
       } else {
-        var paras = parts[i].split(/\n\n+/);
-        for (var p = 0; p < paras.length; p++) {
-          var t = paras[p].trim();
-          if (t) out += "<p>" + inline(t).replace(/\n/g, "<br>") + "</p>";
+        var blocks = parts[i].split(/\n\n+/);
+        for (var b = 0; b < blocks.length; b++) {
+          var block = blocks[b].replace(/^\n+|\n+$/g, "");
+          if (!block) continue;
+          var first = block.split("\n")[0].replace(/^\s+/, "");
+          if (/^[-•]\s/.test(first)) out += renderList(block);
+          else out += "<p>" + inline(block.trim()).replace(/\n/g, "<br>") + "</p>";
         }
       }
     }
     return out;
+  }
+
+  // Point-form notes: top-level "- item", nested "  - sub-item".
+  function renderList(block) {
+    var lines = block.split("\n"), html = '<ul class="notes">', sub = false;
+    for (var i = 0; i < lines.length; i++) {
+      if (!lines[i].trim()) continue;
+      var m2 = lines[i].match(/^\s{2,}[-•]\s+(.*)$/);
+      var m1 = lines[i].match(/^[-•]\s+(.*)$/);
+      if (m2) {
+        if (!sub) { html += '<ul class="sub">'; sub = true; }
+        html += "<li>" + inline(m2[1]) + "</li>";
+      } else if (m1) {
+        if (sub) { html += "</ul>"; sub = false; }
+        html += "<li>" + inline(m1[1]) + "</li>";
+      }
+    }
+    if (sub) html += "</ul>";
+    return html + "</ul>";
   }
 
   /* ════════════════════════════════════════════════════════
