@@ -378,7 +378,8 @@
     oop:   "OOP & SOLID",
     async: "Async & Threading",
     linq:  "LINQ & Collections",
-    data:  "EF Core & Databases",
+    data:  "EF Core & ORM",
+    sql:   "SQL & Databases",
     k8s:   "Kubernetes & DevOps",
     design:"System Design",
     exp:   "Experience & STAR"
@@ -519,7 +520,47 @@
 
     { id:"b-pressure", cat:"behav",
       prompt:"How do you handle pressure or tight deadlines?",
-      a:"**Show a system, not just 'I stay calm'.**\n\n- Prioritise ruthlessly — separate what genuinely must ship from what can wait\n- Communicate early — flag risk before it's a fire, not after\n- Lean on process — safe deploys and tests, so speed doesn't cost reliability\n- Example: launching payments under a deadline, I protected correctness (idempotency) while keeping pace" }
+      a:"**Show a system, not just 'I stay calm'.**\n\n- Prioritise ruthlessly — separate what genuinely must ship from what can wait\n- Communicate early — flag risk before it's a fire, not after\n- Lean on process — safe deploys and tests, so speed doesn't cost reliability\n- Example: launching payments under a deadline, I protected correctness (idempotency) while keeping pace" },
+
+    { id:"s-acid", cat:"sql",
+      prompt:"What does ACID stand for?",
+      a:"**The four guarantees a transaction gives you.**\n\n- **Atomicity** — all-or-nothing: every statement commits, or none does. A failed transfer never debits without crediting.\n- **Consistency** — a transaction moves the DB from one valid state to another; constraints (FKs, checks) are never left violated.\n- **Isolation** — concurrent transactions don't step on each other; the result is as if they ran in sequence (to the degree set by the isolation level).\n- **Durability** — once committed, it survives a crash or power loss (written to the log/disk).\n\nOne-liner: *atomicity is about this transaction, isolation is about concurrent ones, durability is about after commit.*" },
+
+    { id:"s-tx", cat:"sql",
+      prompt:"What is a transaction and when do you reach for one?",
+      a:"A **transaction** groups multiple statements into one atomic unit — they all succeed or all roll back.\n\n- Classic example: a money transfer = debit one account **and** credit another. If the credit fails, the debit must roll back or money vanishes.\n- `BEGIN TRAN … COMMIT / ROLLBACK`; in EF Core, `SaveChanges()` wraps all tracked changes in one transaction automatically.\n- Reach for one whenever a **multi-step write must stay consistent** — payments, issuance, anything money-touching.\n- This is exactly what made my idempotent issuance safe: the check-and-insert ran as **one atomic transaction**, so two retries couldn't both slip through." },
+
+    { id:"s-isolation", cat:"sql",
+      prompt:"Isolation levels — name them and the read phenomena they prevent.",
+      a:"Isolation level = how much concurrent transactions may interfere. Higher isolation = more correctness, less concurrency.\n\n- **Read Uncommitted** — can see others' uncommitted changes (**dirty reads**). Fastest, least safe.\n- **Read Committed** — only sees committed data. Prevents dirty reads. *(Default in SQL Server & Postgres.)*\n- **Repeatable Read** — rows you've read won't change if you re-read them.\n- **Serializable** — full isolation, as if transactions ran one at a time. Safest, most locking.\n\n**The three phenomena to name:**\n- **Dirty read** — you see uncommitted data.\n- **Non-repeatable read** — a row you re-read has changed.\n- **Phantom read** — new rows appear matching your `WHERE` on a re-run.\n\nEach step up removes one more." },
+
+    { id:"s-index", cat:"sql",
+      prompt:"What is an index — clustered vs non-clustered, and the trade-off?",
+      a:"An **index** is a sorted structure (usually a B-tree) that lets the DB find rows without scanning the whole table — like the index at the back of a book.\n\n- **Clustered** — defines the physical order of the rows; **one per table** (usually the primary key). The table *is* the index.\n- **Non-clustered** — a separate structure pointing back to the rows; you can have many.\n- **The trade-off:** indexes make reads and lookups fast but **slow down writes** (every insert/update must maintain them) and cost storage. Index the columns you filter, join, and sort on — not everything.\n\nThe tell for a missing index: a query doing a full **table scan** on a large table." },
+
+    { id:"s-joins", cat:"sql",
+      prompt:"Explain the types of JOIN.",
+      a:"Joins combine rows from two tables on a matching condition.\n\n- **INNER JOIN** — only rows with a match in **both** tables.\n- **LEFT (OUTER) JOIN** — all rows from the left, plus matches from the right; `NULL` where no match.\n- **RIGHT JOIN** — mirror of LEFT (rare; usually rewritten as LEFT).\n- **FULL OUTER JOIN** — everything from both sides, `NULL` where no match.\n- **CROSS JOIN** — every combination (Cartesian product); usually a bug if unintended.\n\nThe one they love to probe — *'customers with no orders'*:\n```sql\nSELECT c.* FROM Customers c\nLEFT JOIN Orders o ON o.CustomerId = c.Id\nWHERE o.Id IS NULL;\n```" },
+
+    { id:"s-keys", cat:"sql",
+      prompt:"Primary key vs foreign key vs unique constraint.",
+      a:"- **Primary key** — uniquely identifies each row; not null, one per table, often the clustered index.\n- **Foreign key** — a column referencing another table's PK; enforces **referential integrity** (can't reference an order that doesn't exist, can't orphan child rows on delete).\n- **Unique constraint** — guarantees no duplicates in a column; unlike a PK it can allow a NULL and you can have several per table.\n\nReal use for me: a **unique constraint is the last-line backstop for idempotency** — even if two retries race past the app-level check, the DB refuses the second insert." },
+
+    { id:"s-deadlock", cat:"sql",
+      prompt:"What's a deadlock and how do you avoid it?",
+      a:"A **deadlock** is when two transactions each hold a lock the other needs, so neither can proceed — the DB detects it and kills one as the 'victim'.\n\n- Classic cause: A locks row 1 then wants row 2; B locks row 2 then wants row 1.\n- **Avoid it by:**\n  - accessing tables/rows in a **consistent order** everywhere\n  - keeping transactions **short** and holding locks briefly\n  - not over-locking (right isolation level for the job)\n- **Handle it:** catch the deadlock error and **retry** the transaction — which is safe precisely because the work is idempotent." },
+
+    { id:"s-lock", cat:"sql",
+      prompt:"Optimistic vs pessimistic locking — when each?",
+      a:"Two strategies for concurrent updates to the same row:\n\n- **Pessimistic** — lock the row on read so nobody else can touch it until you're done. Safe, but hurts concurrency and risks deadlocks. Good when **conflicts are frequent**.\n- **Optimistic** — don't lock; keep a **version / timestamp** column and, on update, check it hasn't changed since you read it. If it did, reject and retry. Good when **conflicts are rare** (most web apps).\n\nEF Core does optimistic concurrency with a `[Timestamp]` / rowversion column — the `UPDATE` gets `WHERE Version = @original`, and **0 rows affected** means someone beat you to it (`DbUpdateConcurrencyException`)." },
+
+    { id:"s-optimize", cat:"sql",
+      prompt:"A query is slow. How do you optimise it?",
+      a:"**Read the execution plan first — don't guess.**\n\n- Check the **query/execution plan** to see where the time goes: table scans, expensive sorts, nested loops over big sets.\n- Add or fix **indexes** on the columns in `WHERE` / `JOIN` / `ORDER BY`.\n- Select **only the columns you need** — avoid `SELECT *`; it defeats covering indexes and drags data.\n- Watch for **N+1** from the ORM, **functions on indexed columns** (`WHERE YEAR(date)=…` can't use the index), and implicit type conversions.\n- Only after the query itself is tight do you consider **denormalising or caching**." },
+
+    { id:"s-nosql", cat:"sql",
+      prompt:"SQL vs NoSQL — when would you pick each?",
+      a:"- **SQL (relational)** — structured schema, relationships, and **ACID transactions**. Pick it when data is relational and correctness matters — payments, orders, anything financial. This is my default and my strength.\n- **NoSQL** — a family, not one thing:\n  - **Document** (MongoDB) — flexible/nested schema, fast reads of whole documents\n  - **Key-value** (Redis) — caching, sessions, blazing lookups\n  - **Wide-column / graph** — scale or relationship-heavy traversal\n- Trade-off: NoSQL buys flexibility and horizontal scale, often at the cost of strong consistency and joins.\n\nHonest rule of thumb: *relational + transactional → SQL; huge scale, flexible shape, or caching → NoSQL.* Many real systems use both." }
   ];
 
   var QUIZ = [
@@ -621,7 +662,67 @@
     { id:"q-defer", cat:"linq",
       prompt:"You store a LINQ query in a variable and `foreach` over it twice. What happens?",
       choices:[["It runs once, cached",0],["It executes twice — two DB round-trips",1],["Compile error",0],["Only the first item is read",0]],
-      e:"**Executes twice** — LINQ is deferred, so each enumeration re-runs the pipeline (and re-hits the database). Materialise once with `ToList()` if you'll iterate more than once." }
+      e:"**Executes twice** — LINQ is deferred, so each enumeration re-runs the pipeline (and re-hits the database). Materialise once with `ToList()` if you'll iterate more than once." },
+
+    { id:"q-atom", cat:"sql",
+      prompt:"Which ACID property guarantees all-or-nothing — every statement commits or none does?",
+      choices:[["Consistency",0],["Atomicity",1],["Isolation",0],["Durability",0]],
+      e:"**Atomicity.** The transaction is indivisible: a failed step rolls the whole thing back. Durability is about surviving a crash *after* commit; Isolation is about concurrent transactions." },
+
+    { id:"q-dirty", cat:"sql",
+      prompt:"At which isolation level can a transaction read another's uncommitted changes (a dirty read)?",
+      choices:[["Read Committed",0],["Read Uncommitted",1],["Repeatable Read",0],["Serializable",0]],
+      e:"**Read Uncommitted** — the lowest level, it lets you see uncommitted data. Read Committed (the usual default) is the first level that prevents dirty reads." },
+
+    { id:"q-innerjoin", cat:"sql",
+      prompt:"An INNER JOIN between Customers and Orders returns…",
+      choices:[["All customers, even without orders",0],["Only customers that have at least one order",1],["All orders, even without a customer",0],["Every combination of rows",0]],
+      e:"**Only rows with a match in both tables.** Customers with no orders are excluded — you'd need a LEFT JOIN to keep them." },
+
+    { id:"q-idxtrade", cat:"sql",
+      prompt:"What's the main downside of adding lots of indexes?",
+      choices:[["Reads get slower",0],["Writes (insert/update) get slower and storage grows",1],["Queries stop using them",0],["There's no downside",0]],
+      e:"**Writes slow down** — every insert/update must maintain each index — and they cost storage. Indexes speed reads; you pay for them on writes, so index deliberately." },
+
+    { id:"q-clustered", cat:"sql",
+      prompt:"How many clustered indexes can a table have?",
+      choices:[["As many as you like",0],["Exactly one",1],["One per column",0],["None allowed",0]],
+      e:"**One.** A clustered index defines the physical row order, so there can only be one per table (typically the primary key). Non-clustered indexes you can have many." },
+
+    { id:"q-fk", cat:"sql",
+      prompt:"A foreign key primarily enforces…",
+      choices:[["Uniqueness of a column",0],["Referential integrity between tables",1],["Faster queries",0],["Encryption of the column",0]],
+      e:"**Referential integrity** — a child row can't reference a parent that doesn't exist, and you can't orphan children on delete. Uniqueness is a unique constraint / PK's job." },
+
+    { id:"q-inject", cat:"sql",
+      prompt:"Best defence against SQL injection?",
+      choices:[["Escaping quotes by hand",0],["Parameterized queries / an ORM that parameterizes",1],["Hiding error messages",0],["Using stored procedures with string concatenation inside",0]],
+      e:"**Parameterized queries** — the SQL and the data travel separately, so user input can never be parsed as SQL. String-concatenated queries (even inside a proc) are the vulnerability. EF Core parameterizes by default." },
+
+    { id:"q-normal", cat:"sql",
+      prompt:"Normalization primarily aims to reduce…",
+      choices:[["Query time",0],["Data redundancy and update anomalies",1],["The number of tables",0],["Index size",0]],
+      e:"**Redundancy** — each fact lives in one place, so you update it once, not in ten rows. Denormalization is the deliberate reverse, trading redundancy for faster reads." },
+
+    { id:"q-optimistic", cat:"sql",
+      prompt:"Optimistic concurrency detects a conflicting update using…",
+      choices:[["A row lock held on read",0],["A version / rowversion column checked at update time",1],["A longer transaction",0],["A higher isolation level",0]],
+      e:"**A version/timestamp column** — the UPDATE says `WHERE Version = @original`; 0 rows affected means someone changed it first, so you retry. No lock is held (that'd be pessimistic)." },
+
+    { id:"q-truncate", cat:"sql",
+      prompt:"Compared with DELETE, TRUNCATE TABLE…",
+      choices:[["Can use a WHERE clause",0],["Is faster, removes all rows, and can't be filtered",1],["Removes the table structure too",0],["Is the same as DROP",0]],
+      e:"**Faster, all-rows, no WHERE** — TRUNCATE deallocates pages with minimal logging and usually resets identity. DELETE is row-by-row and can be filtered; DROP removes the table itself." },
+
+    { id:"q-having", cat:"sql",
+      prompt:"What's the difference between WHERE and HAVING?",
+      choices:[["They're identical",0],["WHERE filters rows before grouping; HAVING filters after aggregation",1],["HAVING is faster",0],["WHERE only works on numbers",0]],
+      e:"**WHERE filters individual rows before GROUP BY; HAVING filters the grouped/aggregated results** (e.g. `HAVING COUNT(*) > 5`). You can't put an aggregate in a WHERE." },
+
+    { id:"q-antijoin", cat:"sql",
+      prompt:"Which returns customers who have NO orders?",
+      choices:[["INNER JOIN Orders",0],["LEFT JOIN Orders … WHERE Orders.Id IS NULL",1],["CROSS JOIN Orders",0],["RIGHT JOIN Orders",0]],
+      e:"**LEFT JOIN + IS NULL** (an anti-join): keep every customer, then filter to the ones where no matching order row existed. INNER JOIN would drop them entirely." }
   ];
 
   /* ════════════════════════════════════════════════════════
