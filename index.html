@@ -381,6 +381,7 @@
     data:  "EF Core & ORM",
     sql:   "SQL & Databases",
     k8s:   "Kubernetes & DevOps",
+    azure: "Azure & Cloud",
     design:"System Design",
     exp:   "Experience & STAR"
   };
@@ -451,8 +452,8 @@
       a:"Kubernetes is a **container orchestrator** — it runs your containers across a cluster of machines and keeps them in the state you declared.\n\n**Pod** — the smallest deployable unit: one (or a few tightly-coupled) containers sharing a network address. Pods are disposable — they come and go.\n\n**Deployment** — the declarative controller: \"I want 3 replicas of this image.\" It creates the pods, replaces ones that die, and handles **rolling updates** (spin up new, drain old) and rollbacks. You edit desired state; K8s reconciles reality to it.\n\n**Service** — a stable network endpoint (a fixed name + virtual IP) in front of a changing set of pods. Because pods are ephemeral and their IPs churn, the Service gives clients one address and **load-balances** across the healthy pods behind it.\n\nThe throughline: you declare *desired state*, the control loop continuously makes *actual state* match." },
 
     { id:"r-probes", cat:"k8s",
-      prompt:"Liveness vs readiness probes — what's the difference?",
-      a:"Both are health checks Kubernetes runs against your container, but they answer different questions:\n\n**Liveness** — *\"is this app alive, or wedged?\"* If it fails, K8s **kills and restarts** the pod. Use it to recover from deadlocks/hangs where the process is up but stuck.\n\n**Readiness** — *\"is this app ready to receive traffic right now?\"* If it fails, K8s **stops routing requests** to the pod (pulls it out of the Service load-balancer) but does **not** kill it. Use it during startup (warming caches, waiting on a DB) or when a dependency is temporarily down.\n\nThe distinction that matters: failing readiness = *\"don't send me traffic yet\"*; failing liveness = *\"I'm broken, restart me.\"* Getting them mixed up means K8s restart-loops a pod that just needed a moment to warm up." },
+      prompt:"Readiness, liveness, and startup probes — what's the difference?",
+      a:"Three health checks Kubernetes runs against your container, answering different questions:\n\n- **Readiness** — *'can it take traffic right now?'* If it fails, K8s pulls the pod out of the Service endpoints but does **not** restart it. For startup warm-up or a temporarily-down dependency.\n- **Liveness** — *'is it still healthy, or wedged?'* If it fails, K8s **kills and restarts** the container. For recovering from hangs/deadlocks.\n- **Startup** — for slow-booting apps: holds the other two off until the app has finished starting, so a slow boot isn't mistaken for a failure.\n\n**Quick tell:** READY 0/1 → **readiness**; a climbing RESTARTS count → **liveness** (or a crash). Point the readiness probe at a lightweight health endpoint that checks your real dependencies." },
 
     { id:"r-broker", cat:"design",
       prompt:"RabbitMQ vs Kafka — when would you pick each?",
@@ -560,7 +561,91 @@
 
     { id:"s-nosql", cat:"sql",
       prompt:"SQL vs NoSQL — when would you pick each?",
-      a:"- **SQL (relational)** — structured schema, relationships, and **ACID transactions**. Pick it when data is relational and correctness matters — payments, orders, anything financial. This is my default and my strength.\n- **NoSQL** — a family, not one thing:\n  - **Document** (MongoDB) — flexible/nested schema, fast reads of whole documents\n  - **Key-value** (Redis) — caching, sessions, blazing lookups\n  - **Wide-column / graph** — scale or relationship-heavy traversal\n- Trade-off: NoSQL buys flexibility and horizontal scale, often at the cost of strong consistency and joins.\n\nHonest rule of thumb: *relational + transactional → SQL; huge scale, flexible shape, or caching → NoSQL.* Many real systems use both." }
+      a:"- **SQL (relational)** — structured schema, relationships, and **ACID transactions**. Pick it when data is relational and correctness matters — payments, orders, anything financial. This is my default and my strength.\n- **NoSQL** — a family, not one thing:\n  - **Document** (MongoDB) — flexible/nested schema, fast reads of whole documents\n  - **Key-value** (Redis) — caching, sessions, blazing lookups\n  - **Wide-column / graph** — scale or relationship-heavy traversal\n- Trade-off: NoSQL buys flexibility and horizontal scale, often at the cost of strong consistency and joins.\n\nHonest rule of thumb: *relational + transactional → SQL; huge scale, flexible shape, or caching → NoSQL.* Many real systems use both." },
+
+    { id:"k-diagnose", cat:"k8s",
+      prompt:"How do you approach any Kubernetes pod issue?",
+      a:"**The same three-command reflex for almost any pod problem.**\n\n- `kubectl get pods` first — check the status and the **READY** count.\n- `kubectl describe pod <name>` — read the **Events** at the bottom; that's where Kubernetes narrates what it's doing.\n- `kubectl logs <name>` (add `--previous` if it crashed) — the app's own side of the story.\n\nExample: `get pods` shows a pod stuck at **0/1 Ready**, `describe` shows a failing readiness probe, and the logs show it can't reach the database — so the real fix is the DB connection, not the pod." },
+
+    { id:"k-describe-logs", cat:"k8s",
+      prompt:"For a missing secret vs an unreachable port — describe or logs?",
+      a:"**Rule of thumb: if the container never started, it's in `describe`. If it started then failed, it's in the `logs`.**\n\n- `describe` = Kubernetes's view *around* the container: scheduling, image pull, mounting secrets, probe results.\n- `logs` = the app's own output from *inside*.\n- A **missing** secret shows in `describe` as `CreateContainerConfigError` — the container never starts, so there are no logs yet.\n- A secret that exists with the **wrong** value shows in the **logs** as an auth exception — the app started, then threw." },
+
+    { id:"k-502", cat:"k8s",
+      prompt:"Users get a 502 and a pod shows READY 0/1. What's happening?",
+      a:"- READY 0/1 means the **readiness probe is failing**.\n- A not-Ready pod is pulled out of the Service's endpoints. If **no** pods are Ready, the Service has nothing to route to, and the ingress returns a **502**.\n- Quick confirm: `kubectl get endpoints <service>` — if it's empty, that's your answer.\n\nClassic after a bad deploy: every pod sits at 0/1 because the readiness endpoint returns 500, `get endpoints` is empty, and you serve 502s until the app goes Ready." },
+
+    { id:"k-running-ready", cat:"k8s",
+      prompt:"What's the difference between Running and Ready?",
+      a:"- **Running** — the container process has started.\n- **Ready** — the readiness probe passes, so it's *allowed to take traffic*.\n\nThe gap matters: a pod can be **Running but not Ready** while it's still warming up, or while a dependency is down. Right after startup it might sit at 0/1 for a while; it only joins the Service and receives traffic once readiness passes." },
+
+    { id:"k-crashloop", cat:"k8s",
+      prompt:"A pod is in CrashLoopBackOff. What does it mean and what do you do?",
+      a:"**The app starts, dies, and K8s keeps restarting it with a growing back-off delay.**\n\n- Usual causes: bad config, a missing env var, or an exception on boot.\n- First move: `kubectl logs --previous` — shows the crash from the *last* attempt, not the fresh one.\n- Typical find: a `NullReference`/config error right at startup, which points straight at the misconfiguration." },
+
+    { id:"k-imagepull", cat:"k8s",
+      prompt:"A pod is in ImagePullBackOff. Cause and fix?",
+      a:"**Kubernetes can't pull the image.**\n\n- Either the **tag/name is wrong**, or it's a **registry auth** problem.\n- `describe` shows the pull error in the Events (e.g. `manifest not found` for a bad tag, like a typo in `latest`).\n- Fix the tag; if it's auth, check the `imagePullSecret`." },
+
+    { id:"k-pending", cat:"k8s",
+      prompt:"A pod is stuck Pending. What's wrong?",
+      a:"**It can't be scheduled yet.**\n\n- Usually no node has enough CPU/memory, or a volume claim is unbound.\n- `describe` shows it in the Events, e.g. *'0/3 nodes available: insufficient memory'*.\n- Once a node frees up (another workload scales down, or you add capacity), it schedules immediately." },
+
+    { id:"k-oom", cat:"k8s",
+      prompt:"A container was OOMKilled. What happened?",
+      a:"**It hit its memory limit and the kernel killed it.**\n\n- `describe` confirms it — you'll see `OOMKilled` in **Last State**.\n- Typical cause: a service with, say, a 256Mi limit processing a payload bigger than it can hold. Fix by raising the limit *and* trimming how much it holds in memory at once.\n- Ties to limits: exceed the **memory** limit → OOMKilled; exceed **CPU** → throttled, not killed." },
+
+    { id:"k-helm", cat:"k8s",
+      prompt:"A deploy went bad. How do you roll back?",
+      a:"- `helm history <release>` to find the last good revision, then `helm rollback <release> <rev>`.\n- e.g. history shows revision 41 was last good → `helm rollback <release> 41`.\n- You can do this from any cluster terminal (Lens has one built in), but under the hood it's just the Helm CLI.\n\n**Prod nuance:** I'd prefer re-running the deploy job for the previous good tag so the revert is tracked in git/CI. A manual `helm rollback` is a **break-glass** move to stop the bleeding — then re-sync with the pipeline." },
+
+    { id:"k-cicd", cat:"k8s",
+      prompt:"Walk me through what happens when you git push (CI/CD).",
+      a:"**A typical 3-stage GitLab CI pipeline — the branch/tag picks the environment.**\n\n- **Build** — static-analysis scan (SonarQube), install deps, copy env config, production build; save output as an artifact.\n- **Dockerize** — build the image, tag it by both commit **SHA** and branch, push to the registry.\n- **Deploy** — decode the kubeconfig, `helm upgrade --install` with the new image into the right namespace.\n\nTwo things I like: the **SHA tag** gives traceability and an easy rollback target, and **prod is gated behind a version tag** (not a branch push), so a production deploy is always deliberate." },
+
+    { id:"k-req-limits", cat:"k8s",
+      prompt:"Resource requests vs limits — what's the difference?",
+      a:"- **Requests** — the guaranteed minimum the scheduler uses to *place* the pod; it only lands on a node with at least that much free.\n- **Limits** — the hard ceiling: exceed **memory** → **OOMKilled**; exceed **CPU** → **throttled**.\n\ne.g. a service requesting 500m CPU / 256Mi memory only schedules where that's available. If it blew past a memory limit it'd be OOMKilled rather than starving everything else on the node." },
+
+    { id:"az-compute", cat:"azure",
+      prompt:"Azure's main compute options — when do you pick each?",
+      a:"**Pick by the trade-off of control vs convenience.**\n\n- **App Service** — PaaS for web apps/APIs. Easiest: deploy code, Azure runs it; easy scaling and deployment slots. My default for a standard web API.\n- **Azure Functions** — serverless, event-driven; pay-per-execution, scales to zero. For triggers, glue, background jobs.\n- **Container Apps** — serverless *containers* (managed, Kubernetes underneath) with scale-to-zero. Containers without running a cluster.\n- **AKS** — managed Kubernetes; most control and most complexity. When you genuinely need full K8s.\n\nRule of thumb: *App Service for a straightforward app, Functions for event-driven, Container Apps for containers without cluster ops, AKS when you truly need Kubernetes.*" },
+
+    { id:"az-functions", cat:"azure",
+      prompt:"What are Azure Functions — triggers and bindings?",
+      a:"**Serverless, event-driven compute.**\n\n- You write a function; a **trigger** runs it — HTTP request, queue message, timer, blob created, Service Bus message.\n- **Bindings** declaratively wire inputs/outputs (read from a queue, write to a blob) without SDK boilerplate.\n- **Consumption plan** scales to zero and bills per-execution; Premium/Dedicated for no cold-start or long-running work.\n- Great for background jobs, integrations, scheduled tasks. The caveat to name: **cold starts** on Consumption.\n\nOne line: *trigger fires it, bindings feed it, and it scales with load automatically.*" },
+
+    { id:"az-messaging", cat:"azure",
+      prompt:"Azure messaging: Service Bus vs Event Hubs vs Event Grid.",
+      a:"**Pick by the pattern.**\n\n- **Service Bus** — enterprise message **broker**: queues + topics/subscriptions, ordering, dead-letter, transactions. The Azure equivalent of RabbitMQ — reliable commands/work.\n- **Event Hubs** — high-throughput **event streaming** (millions/sec), consumers track offsets, replayable. The Azure Kafka — telemetry, logs, analytics ingestion.\n- **Event Grid** — lightweight **event routing** / pub-sub for reactive notifications (e.g. 'a blob was created').\n- **Storage Queue** — simple, cheap, basic queue.\n\nMap it: *Service Bus = reliable work queue, Event Hubs = firehose stream, Event Grid = event notifications.*" },
+
+    { id:"az-cosmos", cat:"azure",
+      prompt:"What is Cosmos DB and when would you use it?",
+      a:"**Azure's globally distributed, multi-model NoSQL database.**\n\n- Document/key-value/graph, **single-digit-millisecond** latency, turnkey global replication.\n- Five **consistency levels** on a spectrum from **Strong** (safest, slowest) to **Eventual** (fastest) — Session is the common default.\n- Billed in **RU/s** (Request Units) — you provision or autoscale throughput.\n- Reach for it for global scale, flexible schema, and massive throughput. For relational + transactional work, I'd still pick **Azure SQL**." },
+
+    { id:"az-sql", cat:"azure",
+      prompt:"What is Azure SQL Database?",
+      a:"**Managed (PaaS) SQL Server.**\n\n- Microsoft runs patching, backups, and HA; you get a SQL Server–compatible database, so **EF Core code is unchanged**.\n- Purchasing models: **DTU** (bundled, simple) vs **vCore** (choose CPU/memory, more control, Hybrid Benefit).\n- **Serverless** tier auto-pauses when idle (cost saving); **Elastic Pools** share resources across many databases.\n- vs **SQL Managed Instance** — closer to full on-prem SQL Server (SQL Agent, cross-DB queries), for lift-and-shift." },
+
+    { id:"az-keyvault", cat:"azure",
+      prompt:"How do you handle secrets in Azure? (Key Vault + Managed Identity)",
+      a:"**Never put secrets in appsettings or source control.**\n\n- **Key Vault** centrally stores secrets, keys, and certificates, with access policies and audit logging.\n- **Managed Identity** gives your App Service/Function an Azure AD identity, so it authenticates to Key Vault (and other Azure services) **with no stored credentials at all**.\n- The pattern: app uses its **Managed Identity** → reads the secret from **Key Vault** at runtime. Nothing sensitive in config or git.\n\nThis is exactly the answer interviewers are fishing for when they ask where you keep connection strings." },
+
+    { id:"az-identity", cat:"azure",
+      prompt:"What is a Managed Identity and why does it matter?",
+      a:"**An Azure AD identity automatically managed for your resource — you never see or rotate a credential.**\n\n- **System-assigned** — tied to one resource's lifecycle. **User-assigned** — standalone, shareable across resources.\n- Use it to access Key Vault, Azure SQL, Storage, Service Bus **without secrets**: grant the identity an RBAC role, and the SDK gets tokens transparently.\n- The security win: **no credentials to leak, store, or rotate.** It's the modern default over connection strings and keys." },
+
+    { id:"az-appinsights", cat:"azure",
+      prompt:"What is Application Insights?",
+      a:"**Azure's APM / observability, part of Azure Monitor.**\n\n- Collects **requests, dependencies, exceptions, traces, and custom metrics** from your app.\n- Gives distributed tracing, live metrics, failure/performance views, and **Kusto (KQL)** queries over the telemetry.\n- Wire it in via SDK or auto-instrumentation; correlate a slow request down to the exact failing dependency call.\n\nInterview framing: *this is how I'd diagnose a production latency or error spike — trace it end-to-end rather than guessing.*" },
+
+    { id:"az-scaling", cat:"azure",
+      prompt:"Scaling in Azure — up vs out?",
+      a:"- **Scale up (vertical)** — a bigger instance (more CPU/RAM). Simple, but has a ceiling and often means downtime.\n- **Scale out (horizontal)** — *more* instances behind a load balancer. The cloud-preferred way: near-limitless and resilient. This is why app instances should be **stateless**.\n- **Autoscale** — rules on metrics (CPU, queue length) or a schedule add/remove instances automatically.\n\nApp Service and AKS both scale out; Functions on Consumption scales out automatically, including to zero." },
+
+    { id:"az-iac", cat:"azure",
+      prompt:"Infrastructure as Code and CI/CD on Azure.",
+      a:"- **Bicep** (or ARM templates) declaratively defines your Azure resources — version-controlled, repeatable, no click-ops. Bicep is the cleaner modern syntax over raw ARM JSON.\n- **Azure DevOps Pipelines** / **GitHub Actions** build, test, and deploy — the same CI/CD discipline I run elsewhere, just Azure-flavoured.\n- **Deployment slots** on App Service give **blue-green / zero-downtime** releases with instant rollback (swap back).\n\nOne line: *infra defined in code, shipped through a pipeline, with slots for safe releases.*" }
   ];
 
   var QUIZ = [
@@ -722,7 +807,92 @@
     { id:"q-antijoin", cat:"sql",
       prompt:"Which returns customers who have NO orders?",
       choices:[["INNER JOIN Orders",0],["LEFT JOIN Orders … WHERE Orders.Id IS NULL",1],["CROSS JOIN Orders",0],["RIGHT JOIN Orders",0]],
-      e:"**LEFT JOIN + IS NULL** (an anti-join): keep every customer, then filter to the ones where no matching order row existed. INNER JOIN would drop them entirely." }
+      e:"**LEFT JOIN + IS NULL** (an anti-join): keep every customer, then filter to the ones where no matching order row existed. INNER JOIN would drop them entirely." },
+
+    { id:"q-crashloop", cat:"k8s",
+      prompt:"A pod is in CrashLoopBackOff. Best first command?",
+      choices:[["kubectl get nodes",0],["kubectl logs --previous",1],["kubectl scale",0],["kubectl delete pod",0]],
+      e:"**`kubectl logs --previous`** — the app boots then crashes, so you want the *previous* container's logs to see the startup exception (missing env var, bad config), not the fresh attempt." },
+
+    { id:"q-imagepull", cat:"k8s",
+      prompt:"ImagePullBackOff most likely means…",
+      choices:[["The app crashed on boot",0],["A wrong image tag/name or registry auth problem",1],["Out of memory",0],["Readiness probe failing",0]],
+      e:"**Wrong tag/name or registry auth.** K8s can't pull the image at all — the container never starts. `describe` shows the pull error in Events (e.g. `manifest not found`). Check the tag, then the `imagePullSecret`." },
+
+    { id:"q-oomkilled", cat:"k8s",
+      prompt:"A container exceeds its memory limit. What happens?",
+      choices:[["It's throttled",0],["It's OOMKilled (killed and restarted)",1],["It scales out",0],["Nothing",0]],
+      e:"**OOMKilled.** Exceeding the *memory* limit gets the container killed by the kernel (see `OOMKilled` in Last State). Exceeding the *CPU* limit only **throttles** it — it's not killed." },
+
+    { id:"q-pending", cat:"k8s",
+      prompt:"A pod is stuck in Pending. Most common cause?",
+      choices:[["The image is missing",0],["No node has enough CPU/memory (or an unbound volume)",1],["The app threw an exception",0],["The liveness probe failed",0]],
+      e:"**It can't be scheduled** — usually insufficient node CPU/memory or an unbound PVC. `describe` shows it: '0/N nodes available: insufficient memory'. Free up or add capacity and it schedules." },
+
+    { id:"q-502ready", cat:"k8s",
+      prompt:"Every pod shows READY 0/1 and users get 502s. What's the cause?",
+      choices:[["Liveness probe restarting pods",0],["Readiness failing → pods pulled from Service endpoints → nothing to route to",1],["ImagePullBackOff",0],["Too many replicas",0]],
+      e:"**Readiness is failing.** Not-Ready pods leave the Service's endpoints; with none Ready, the ingress has nothing to route to → 502. Confirm with `kubectl get endpoints` (empty)." },
+
+    { id:"q-describe", cat:"k8s",
+      prompt:"Where do you see scheduling, image-pull, and probe events for a pod?",
+      choices:[["kubectl logs",0],["kubectl describe pod",1],["kubectl top",0],["kubectl get",0]],
+      e:"**`describe pod`** — its Events section is Kubernetes's view *around* the container. `logs` is the app's output from *inside* (only exists once the container starts)." },
+
+    { id:"q-helm-rollback", cat:"k8s",
+      prompt:"You need to roll back a bad Helm release. What do you do?",
+      choices:[["helm delete then reinstall",0],["helm history to find the last good revision, then helm rollback",1],["kubectl edit the deployment",0],["Restart every pod",0]],
+      e:"**`helm history <release>` → `helm rollback <release> <rev>`.** History shows revisions; rollback restores a known-good one. In prod, prefer re-deploying the previous good tag through CI so the revert is tracked." },
+
+    { id:"q-cpu-limit", cat:"k8s",
+      prompt:"A container exceeds its CPU limit (but not memory). What happens?",
+      choices:[["OOMKilled",0],["Throttled — slowed, not killed",1],["Evicted",0],["Restarted",0]],
+      e:"**Throttled.** CPU is compressible — K8s just caps it, so the app slows. Only exceeding the *memory* limit gets you killed (OOMKilled)." },
+
+    { id:"q-az-func", cat:"azure",
+      prompt:"Which Azure service is serverless, event-driven, and scales to zero?",
+      choices:[["App Service",0],["Azure Functions",1],["AKS",0],["Virtual Machines",0]],
+      e:"**Azure Functions** — triggered by events (HTTP, queue, timer, blob), billed per-execution, scales to zero on the Consumption plan. App Service is always-on PaaS; AKS is a managed cluster." },
+
+    { id:"q-az-keyvault", cat:"azure",
+      prompt:"Where should application secrets, keys, and certificates live?",
+      choices:[["appsettings.json in the repo",0],["Azure Key Vault",1],["Environment variables committed to git",0],["Cosmos DB",0]],
+      e:"**Key Vault** — centralized, access-controlled, audited. Combine with a **Managed Identity** so the app reads secrets at runtime with no credentials stored anywhere." },
+
+    { id:"q-az-mi", cat:"azure",
+      prompt:"How do you let an App Service reach Azure SQL or Key Vault without storing any credentials?",
+      choices:[["Hard-code a connection string",0],["Use a Managed Identity",1],["Put a password in an env var",0],["Use a shared admin account",0]],
+      e:"**Managed Identity** — an Azure AD identity for the resource; grant it an RBAC role and the SDK gets tokens transparently. No secret to store, leak, or rotate." },
+
+    { id:"q-az-eventhub", cat:"azure",
+      prompt:"You must ingest millions of telemetry events per second, replayable by multiple consumers. Which service?",
+      choices:[["Service Bus",0],["Event Hubs",1],["Storage Queue",0],["Event Grid",0]],
+      e:"**Event Hubs** — high-throughput, offset-based streaming (the Azure Kafka). Service Bus is a reliable broker for work/commands; Event Grid is lightweight event routing." },
+
+    { id:"q-az-servicebus", cat:"azure",
+      prompt:"Which Azure service is the enterprise message broker with queues, topics, and dead-lettering?",
+      choices:[["Event Hubs",0],["Service Bus",1],["Application Insights",0],["Cosmos DB",0]],
+      e:"**Service Bus** — reliable queues + topics/subscriptions, ordering, transactions, dead-letter. The Azure equivalent of RabbitMQ, for commands/work that must not be lost." },
+
+    { id:"q-az-cosmos", cat:"azure",
+      prompt:"Cosmos DB is best described as…",
+      choices:[["Managed SQL Server",0],["A globally distributed, multi-model NoSQL database",1],["A message queue",0],["A caching layer",0]],
+      e:"**Globally distributed multi-model NoSQL** with single-digit-ms latency, tunable consistency levels, and RU/s throughput. For relational + transactional, use Azure SQL instead." },
+
+    { id:"q-az-scaleout", cat:"azure",
+      prompt:"Adding more instances behind a load balancer is called…",
+      choices:[["Scaling up (vertical)",0],["Scaling out (horizontal)",1],["Failover",0],["Sharding",0]],
+      e:"**Scaling out (horizontal)** — more instances, the cloud-preferred approach (needs stateless apps). Scaling *up* is a bigger single instance, which has a ceiling and usually downtime." },
+
+    { id:"q-az-appinsights", cat:"azure",
+      prompt:"Which service gives you distributed tracing, request/dependency telemetry, and KQL queries?",
+      choices:[["Key Vault",0],["Application Insights",1],["Event Grid",0],["App Configuration",0]],
+      e:"**Application Insights** (part of Azure Monitor) — APM telemetry for requests, dependencies, exceptions and traces, queryable with Kusto. It's how you diagnose a prod latency/error spike." },
+
+    { id:"q-az-appservice", cat:"azure",
+      prompt:"Simplest way to host a standard .NET web API with minimal ops overhead?",
+      choices:[["Provision a VM and configure IIS",0],["Azure App Service (PaaS)",1],["Run your own Kubernetes cluster",0],["Azure Functions timer trigger",0]],
+      e:"**App Service** — PaaS: deploy the code, Azure handles the OS/runtime/scaling, and you get deployment slots for safe releases. VMs and self-managed K8s are far more ops for a standard API." }
   ];
 
   /* ════════════════════════════════════════════════════════
