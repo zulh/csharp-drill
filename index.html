@@ -1,0 +1,897 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<meta name="description" content="A keyboard-driven C#/.NET interview study tool — say-it-out-loud recall cards plus MCQ quiz, with spaced repetition.">
+<title>C# Drill — Interview Recall</title>
+<style>
+  html, body { margin: 0; padding: 0; }
+  :root {
+    --bg: #f6f5fa;
+    --surface: #ffffff;
+    --surface-2: #efedf6;
+    --ink: #1b1a24;
+    --muted: #6b6880;
+    --faint: #948fa8;
+    --line: #e4e1ee;
+    --accent: #6d4aff;
+    --accent-strong: #512bd4;
+    --accent-soft: #ece7ff;
+    --good: #2f9e69;
+    --good-soft: #e3f3ea;
+    --warn: #cf8a2c;
+    --warn-soft: #f7ecd9;
+    --bad: #d1495b;
+    --bad-soft: #f7e2e5;
+    --shadow: 0 1px 2px rgba(27,26,36,.04), 0 12px 34px -18px rgba(45,32,90,.28);
+    --mono: ui-monospace, "Cascadia Code", "Cascadia Mono", "SF Mono", "Segoe UI Mono", Consolas, Menlo, monospace;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #100f16;
+      --surface: #191823;
+      --surface-2: #201e2c;
+      --ink: #ece9f5;
+      --muted: #9a95b0;
+      --faint: #6a6680;
+      --line: #2a2836;
+      --accent: #9d86ff;
+      --accent-strong: #7c5cff;
+      --accent-soft: #241f38;
+      --good: #4bbd86;
+      --good-soft: #16261f;
+      --warn: #e0a24e;
+      --warn-soft: #29200f;
+      --bad: #e56b7c;
+      --bad-soft: #2a161b;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 16px 40px -20px rgba(0,0,0,.6);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f6f5fa; --surface: #ffffff; --surface-2: #efedf6; --ink: #1b1a24;
+    --muted: #6b6880; --faint: #948fa8; --line: #e4e1ee; --accent: #6d4aff;
+    --accent-strong: #512bd4; --accent-soft: #ece7ff; --good: #2f9e69; --good-soft: #e3f3ea;
+    --warn: #cf8a2c; --warn-soft: #f7ecd9; --bad: #d1495b; --bad-soft: #f7e2e5;
+    --shadow: 0 1px 2px rgba(27,26,36,.04), 0 12px 34px -18px rgba(45,32,90,.28);
+  }
+  :root[data-theme="dark"] {
+    --bg: #100f16; --surface: #191823; --surface-2: #201e2c; --ink: #ece9f5;
+    --muted: #9a95b0; --faint: #6a6680; --line: #2a2836; --accent: #9d86ff;
+    --accent-strong: #7c5cff; --accent-soft: #241f38; --good: #4bbd86; --good-soft: #16261f;
+    --warn: #e0a24e; --warn-soft: #29200f; --bad: #e56b7c; --bad-soft: #2a161b;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 16px 40px -20px rgba(0,0,0,.6);
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  ::selection { background: var(--accent-soft); }
+
+  /* ── Header ─────────────────────────────────────────── */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--line);
+  }
+  .bar {
+    max-width: 900px; margin: 0 auto;
+    padding: 14px 22px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+  }
+  .wordmark {
+    font-family: var(--mono);
+    font-weight: 700; font-size: 15px; letter-spacing: -.02em;
+    color: var(--ink); white-space: nowrap;
+  }
+  .wordmark .dot { color: var(--accent); }
+  .wordmark .cur { color: var(--accent); animation: blink 1.2s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .spacer { flex: 1 1 auto; }
+
+  .seg {
+    display: inline-flex; background: var(--surface-2);
+    border: 1px solid var(--line); border-radius: 9px; padding: 3px;
+  }
+  .seg button {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .01em;
+    border: 0; background: transparent; color: var(--muted);
+    padding: 6px 13px; border-radius: 7px; cursor: pointer;
+    transition: color .15s, background .15s;
+  }
+  .seg button[aria-pressed="true"] {
+    background: var(--surface); color: var(--ink);
+    box-shadow: 0 1px 2px rgba(0,0,0,.08);
+  }
+  .seg button:hover { color: var(--ink); }
+
+  select.cat {
+    font-family: var(--mono); font-size: 12px; color: var(--ink);
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-radius: 9px; padding: 7px 10px; cursor: pointer;
+  }
+  .icon-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 34px; height: 34px; border-radius: 9px;
+    border: 1px solid var(--line); background: var(--surface-2);
+    color: var(--muted); cursor: pointer; transition: color .15s, border-color .15s;
+  }
+  .icon-btn:hover { color: var(--ink); border-color: var(--accent); }
+  .icon-btn svg { width: 16px; height: 16px; }
+
+  /* ── Progress strip ─────────────────────────────────── */
+  .strip {
+    max-width: 900px; margin: 0 auto; width: 100%;
+    padding: 0 22px;
+  }
+  .strip-inner {
+    display: flex; align-items: center; gap: 18px;
+    padding: 10px 0 0; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 11px; color: var(--muted);
+  }
+  .track {
+    flex: 1 1 160px; height: 5px; border-radius: 3px;
+    background: var(--surface-2); overflow: hidden; min-width: 120px;
+  }
+  .track > i { display: block; height: 100%; background: var(--accent); width: 0; transition: width .4s ease; }
+  .stat b { color: var(--ink); font-weight: 700; }
+  .stat .u { color: var(--faint); }
+
+  /* ── Main ───────────────────────────────────────────── */
+  main {
+    flex: 1 1 auto; width: 100%;
+    max-width: 900px; margin: 0 auto;
+    padding: 22px 22px 40px;
+    display: flex; flex-direction: column;
+  }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 18px; box-shadow: var(--shadow);
+    padding: 30px clamp(22px, 5vw, 44px);
+    display: flex; flex-direction: column; min-height: 62vh;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .card { animation: rise .32s cubic-bezier(.2,.7,.2,1); }
+  }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+
+  .card-top {
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    margin-bottom: 22px;
+  }
+  .chip {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--accent-strong);
+    background: var(--accent-soft); border-radius: 999px;
+    padding: 5px 11px; font-weight: 600;
+  }
+  .mastery { display: inline-flex; gap: 5px; align-items: center; margin-left: auto; }
+  .mastery .pip { width: 8px; height: 8px; border-radius: 50%; background: var(--surface-2); border: 1px solid var(--line); }
+  .mastery .pip.on { background: var(--accent); border-color: var(--accent); }
+  .mastery small { font-family: var(--mono); font-size: 10px; color: var(--faint); margin-left: 4px; letter-spacing: .04em; }
+
+  .prompt {
+    font-family: var(--mono);
+    font-size: clamp(19px, 2.6vw, 25px);
+    line-height: 1.4; font-weight: 600; letter-spacing: -.01em;
+    color: var(--ink); text-wrap: balance; margin: 0 0 4px;
+  }
+  .say {
+    font-family: var(--sans); font-size: 13px; color: var(--muted);
+    margin-top: 16px; display: flex; align-items: center; gap: 8px;
+  }
+  .say svg { width: 15px; height: 15px; color: var(--accent); flex: none; }
+
+  .grow { flex: 1 1 auto; }
+
+  /* ── Reveal / answer ────────────────────────────────── */
+  .answer {
+    margin-top: 24px; border-top: 1px dashed var(--line); padding-top: 22px;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .answer { animation: fade .3s ease; }
+  }
+  @keyframes fade { from { opacity: 0; } }
+  .answer .lbl {
+    font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--faint); margin-bottom: 10px;
+  }
+  .prose { font-family: var(--serif); font-size: 16.5px; line-height: 1.62; color: var(--ink); }
+  .prose p { margin: 0 0 12px; }
+  .prose p:last-child { margin-bottom: 0; }
+  .prose strong { font-weight: 700; }
+  .prose code {
+    font-family: var(--mono); font-size: .84em;
+    background: var(--surface-2); border: 1px solid var(--line);
+    padding: 1px 5px; border-radius: 5px; color: var(--accent-strong);
+  }
+  .prose pre {
+    font-family: var(--mono); font-size: 13px; line-height: 1.55;
+    background: var(--surface-2); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px; padding: 13px 15px; margin: 4px 0 14px;
+    overflow-x: auto; color: var(--ink);
+  }
+  .prose pre code { background: none; border: 0; padding: 0; color: inherit; font-size: 13px; }
+
+  /* ── Controls ───────────────────────────────────────── */
+  .controls { margin-top: 26px; }
+  .btn {
+    font-family: var(--sans); font-size: 14px; font-weight: 600;
+    border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+    padding: 13px 20px; border-radius: 11px; cursor: pointer;
+    transition: transform .12s, border-color .15s, background .15s;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:active { transform: translateY(1px); }
+  .btn.primary {
+    background: var(--accent); border-color: var(--accent); color: #fff;
+    width: 100%; font-size: 15px; letter-spacing: .01em;
+  }
+  :root[data-theme="dark"] .btn.primary,
+  .btn.primary { color: #fff; }
+  @media (prefers-color-scheme: dark) { .btn.primary { color: #14121c; } }
+  :root[data-theme="dark"] .btn.primary { color: #14121c; }
+  :root[data-theme="light"] .btn.primary { color: #fff; }
+  .btn.primary:hover { background: var(--accent-strong); border-color: var(--accent-strong); }
+
+  .grade { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .grade button {
+    font-family: var(--sans); font-weight: 600; font-size: 14px;
+    border-radius: 11px; padding: 13px 8px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    transition: transform .12s, border-color .15s, background .15s;
+  }
+  .grade button:active { transform: translateY(1px); }
+  .grade button .k { font-family: var(--mono); font-size: 10px; color: var(--faint); font-weight: 400; }
+  .grade .got:hover { border-color: var(--good); background: var(--good-soft); }
+  .grade .got { color: var(--good); }
+  .grade .shk:hover { border-color: var(--warn); background: var(--warn-soft); }
+  .grade .shk { color: var(--warn); }
+  .grade .mis:hover { border-color: var(--bad); background: var(--bad-soft); }
+  .grade .mis { color: var(--bad); }
+
+  /* ── Quiz choices ───────────────────────────────────── */
+  .choices { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .choice {
+    text-align: left; font-family: var(--sans); font-size: 15px; color: var(--ink);
+    border: 1px solid var(--line); background: var(--surface); border-radius: 11px;
+    padding: 13px 15px; cursor: pointer; display: flex; gap: 12px; align-items: flex-start;
+    transition: border-color .15s, background .15s;
+  }
+  .choice:hover:not(:disabled) { border-color: var(--accent); }
+  .choice .key {
+    font-family: var(--mono); font-size: 12px; color: var(--muted);
+    border: 1px solid var(--line); border-radius: 6px; width: 22px; height: 22px;
+    display: inline-flex; align-items: center; justify-content: center; flex: none;
+  }
+  .choice.correct { border-color: var(--good); background: var(--good-soft); }
+  .choice.correct .key { border-color: var(--good); color: var(--good); }
+  .choice.wrong { border-color: var(--bad); background: var(--bad-soft); }
+  .choice.wrong .key { border-color: var(--bad); color: var(--bad); }
+  .choice:disabled { cursor: default; }
+  .explain {
+    margin-top: 16px; font-family: var(--serif); font-size: 15.5px; line-height: 1.6;
+    color: var(--ink); background: var(--surface-2); border-radius: 10px;
+    padding: 14px 16px; border-left: 3px solid var(--accent);
+  }
+  .explain strong { font-weight: 700; }
+  .explain code { font-family: var(--mono); font-size: .85em; background: var(--surface); border: 1px solid var(--line); padding: 1px 5px; border-radius: 5px; color: var(--accent-strong); }
+
+  /* ── Footer ─────────────────────────────────────────── */
+  footer {
+    max-width: 900px; margin: 0 auto; width: 100%;
+    padding: 4px 22px 28px;
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 11px; color: var(--faint);
+  }
+  footer kbd {
+    font-family: var(--mono); font-size: 10px; background: var(--surface-2);
+    border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; color: var(--muted);
+  }
+  .link {
+    background: none; border: 0; color: var(--faint); font-family: var(--mono);
+    font-size: 11px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+    padding: 0;
+  }
+  .link:hover { color: var(--bad); }
+
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+
+  @media (max-width: 560px) {
+    .bar { padding: 12px 16px; gap: 10px; }
+    .strip, main, footer { padding-left: 16px; padding-right: 16px; }
+    .card { padding: 24px 18px; min-height: 60vh; }
+    .grade button .full { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="bar">
+    <span class="wordmark">csharp<span class="dot">.</span>drill<span class="cur">_</span></span>
+    <span class="spacer"></span>
+    <div class="seg" role="group" aria-label="Study mode">
+      <button id="mode-recall" aria-pressed="true">Recall</button>
+      <button id="mode-quiz" aria-pressed="false">Quiz</button>
+    </div>
+    <select class="cat" id="cat" aria-label="Category filter"></select>
+    <button class="icon-btn" id="theme" aria-label="Toggle theme" title="Toggle theme"></button>
+  </div>
+  <div class="strip">
+    <div class="strip-inner">
+      <span class="stat"><b id="s-mastered">0</b><span class="u"> / <span id="s-total">0</span> mastered</span></span>
+      <span class="stat">deck <b id="s-pos">0</b><span class="u">/<span id="s-deck">0</span></span></span>
+      <div class="track" aria-hidden="true"><i id="bar"></i></div>
+      <span class="stat">streak <b id="s-streak">0</b></span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="card" id="card"><!-- rendered --></div>
+</main>
+
+<footer>
+  <span id="fkeys"></span>
+  <span class="spacer" style="flex:1"></span>
+  <button class="link" id="reset">reset progress</button>
+</footer>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ════════════════════════════════════════════════════════
+     QUESTION BANK  — seeded from Zulhilmi's interview prep.
+     Grow it: add objects to RECALL or QUIZ.
+     Answer/explain markup: **bold**, `inline code`, ```code block```
+     ════════════════════════════════════════════════════════ */
+
+  var CATS = {
+    lang:  "C# Language",
+    oop:   "OOP & SOLID",
+    async: "Async & Threading",
+    linq:  "LINQ & Collections",
+    data:  "EF Core & Databases",
+    k8s:   "Kubernetes & DevOps",
+    design:"System Design",
+    exp:   "Experience & STAR"
+  };
+
+  var RECALL = [
+    { id:"r-valref", cat:"lang",
+      prompt:"Value types vs reference types — what's the real difference, and why does it matter?",
+      a:"A **value type** (struct, int, bool, enum, `DateTime`) holds its data directly. Assign it or pass it to a method and you copy the whole value — the callee gets its own independent copy, so changes it makes are **not** seen by the caller.\n\nA **reference type** (class, string, array, most things) holds a reference to an object on the heap. Assign or pass it and you copy the *reference* — both variables point at the **same object**, so a change through one is seen by the other.\n\n```csharp\nvoid Bump(Point p) { p.X++; }   // struct: caller unchanged\nvoid Bump(Order o) { o.Total++; } // class: caller sees it\n```\n\nThe practical tell: \"does the caller see my change?\" Value = no, reference = yes. Watch the gotcha that `string` is a *reference* type but behaves value-like because it's immutable." },
+
+    { id:"r-crs", cat:"lang",
+      prompt:"class vs record vs struct — when do you reach for each?",
+      a:"**class** — reference type, identity-based equality (two objects are equal only if they're the same instance). The default for most things: services, entities, anything with behavior.\n\n**record** — still a reference type, but the compiler gives you **value-based equality** (equal if all members match), `with`-expressions for non-destructive copies, and a nice `ToString`. Reach for it for **immutable data / DTOs** — an API response, a value object.\n\n**struct** — value type, copied on assignment, lives on the stack (no heap allocation). Use for **small, short-lived values** where copying is cheap — a coordinate, a money amount. Keep them small and ideally immutable, or copying semantics bite you.\n\nOne line: *class for behavior and identity, record for immutable data, struct for small cheap values.*" },
+
+    { id:"r-var", cat:"lang",
+      prompt:"var — what is it, and when is it a bad idea?",
+      a:"`var` is **implicit typing**: the compiler infers the static type from the right-hand side. It's still strongly typed — `var x = 5;` is exactly `int x = 5;`, just less to type. No runtime cost, no dynamic behaviour.\n\nGood when the type is obvious from the RHS (`var user = new User();`) or genuinely unspeakable (LINQ anonymous types).\n\nBad when it *hides* the type and hurts readability — `var result = Process(data);` tells a reader nothing. Rule of thumb: use `var` when the type is on the line already, spell it out when it isn't." },
+
+    { id:"r-pillars", cat:"oop",
+      prompt:"The four pillars of OOP — name them and give a one-line 'why' for each.",
+      a:"**Encapsulation** — bundle data with the methods that guard it, and hide the internals behind a public surface. Why: callers can't put the object in an invalid state.\n\n**Abstraction** — expose *what* something does, hide *how*. Why: you can swap the implementation without touching callers (this is what enables Dependency Inversion).\n\n**Inheritance** — a subclass reuses and extends a base. Why: share common behaviour — but favour composition; deep inheritance trees get brittle.\n\n**Polymorphism** — one interface, many implementations chosen at runtime. Why: it replaces `switch`/`if` chains with a virtual call, which is what makes code Open/Closed." },
+
+    { id:"r-solid", cat:"oop",
+      prompt:"Walk me through SOLID.",
+      a:"Five principles all pointing at one goal — **change code safely**.\n\n**S — Single Responsibility.** One reason to change; better, answer to one stakeholder. If finance, the DBA and HR can each demand a change to the same class, split it.\n\n**O — Open/Closed.** Add behaviour by writing new code, not editing tested code. In practice: replace a conditional with polymorphism — a new `IPaymentProcessor` instead of another branch in a payment `switch`.\n\n**L — Liskov.** A subtype must be usable anywhere its base is, *behaviourally* — can't demand more, promise less, or throw what the base doesn't. Tell: calling code needing an `is` check.\n\n**I — Interface Segregation.** No client depends on methods it doesn't use. `NotImplementedException` in an impl means the interface is too fat. It's SRP for interfaces.\n\n**D — Dependency Inversion.** Policy and detail both depend on an abstraction owned by the policy side. `IOrderRepository` lives with the domain; `SqlOrderRepository` points up at it." },
+
+    { id:"r-dip", cat:"oop",
+      prompt:"Dependency Inversion specifically — and how is it different from Dependency Injection?",
+      a:"**DIP has two halves:** high-level modules shouldn't depend on low-level ones — both depend on abstractions; and abstractions shouldn't depend on details — details depend on abstractions.\n\nThe word *inversion*: normally the arrow runs from business logic **down** to plumbing (`OrderService → SqlOrderRepository`). DIP flips it — the plumbing points **up** at an abstraction that lives with the business logic:\n\n```\nOrderService → IOrderRepository ← SqlOrderRepository\n  (domain)        (domain)          (infrastructure)\n```\n\nThe insight most people miss: **the interface is owned by the consumer, not the provider.** Infrastructure references the domain, never the reverse. Your domain doesn't know SQL exists.\n\n**DIP ≠ DI.** Dependency Injection is just a *technique* to achieve it. You can use a DI container and still violate DIP — e.g. injecting concrete classes, or making the domain reference EF Core to define the interface." },
+
+    { id:"r-liskov", cat:"oop",
+      prompt:"Explain Liskov Substitution — and give a real example of a violation.",
+      a:"A subtype must be usable **anywhere** its base is, and the point is it's about **behaviour, not compiling** — the compiler already guarantees the type fits. Liskov is the promise it also *behaves* right, so the caller never has to know which subtype it got.\n\nA subtype must not: demand more than the base (stronger preconditions), promise less (weaker postconditions), throw exceptions the base doesn't, or break its invariants.\n\n**The tell:** calling code that needs `if (x is SomeSubtype)`, or a `catch` for one subtype only.\n\n**Real one from .NET itself:**\n```csharp\nIList<int> list = new[] {1,2,3};  // arrays implement IList<T>\nlist.Add(4);   // NotSupportedException at runtime\n```\nAn array is a fixed-size `IList<T>` that throws on `Add` — a shipped Liskov violation, and exactly why `IReadOnlyList<T>` was added." },
+
+    { id:"r-di-life", cat:"oop",
+      prompt:"AddScoped vs AddSingleton vs AddTransient — and why is Scoped different from Transient?",
+      a:"They're the three DI **lifetimes** — how long the container keeps one instance:\n\n**Singleton** — one instance for the whole app. Good for stateless/shared things (a clock, config, a cache). Must be thread-safe.\n\n**Scoped** — one instance **per scope**, which in ASP.NET Core means **per HTTP request**. Everything in that one request shares it; the next request gets a fresh one. This is where `DbContext` lives.\n\n**Transient** — a **new instance every time** it's asked for, even twice within the same request. For cheap, stateless helpers.\n\n**Scoped vs Transient:** within a single request, Scoped hands out the *same* object to every dependency that needs it; Transient hands out a *new* one each time. That's why a Scoped `DbContext` lets several services share one unit-of-work and transaction — Transient would give each its own." },
+
+    { id:"r-async", cat:"async",
+      prompt:"What does async/await actually do — and what does it NOT do?",
+      a:"`await` on an I/O operation (a DB call, an HTTP request) **releases the current thread back to the thread pool** while the I/O is in flight, then resumes your method when the result is ready. The compiler rewrites the method into a state machine to make that pause/resume work.\n\nWhat it buys you: **throughput / scalability**. That thread can go serve other requests instead of blocking. A server handling 1000 concurrent requests doesn't need 1000 threads parked on the DB.\n\n**What it does NOT do:** make any single call faster. An `await`ed query that takes 200ms still takes 200ms — you haven't sped it up, you've just stopped wasting a thread while you wait. Async is about *doing more at once*, not *doing one thing quicker*.\n\nGotcha to name: never `.Result`/`.Wait()` on async code — it blocks the thread you were trying to free, and can deadlock." },
+
+    { id:"r-taskthread", cat:"async",
+      prompt:"Task vs Thread — and what does 'improves throughput, not the speed of a single call' mean?",
+      a:"A **Thread** is an actual OS thread — expensive (≈1MB stack), you manage its life. A **Task** is a higher-level *promise of future work* that runs on the shared **thread pool**; the runtime schedules it. You almost always want `Task`.\n\n**\"Improves throughput, not single-call speed\":** imagine a waiter (a thread). If they stand at one table waiting for the kitchen, one table is served slowly and everyone else waits. Async is the waiter taking other tables' orders while the kitchen cooks — the first meal doesn't arrive any sooner (*same single-call speed*), but far more tables get served in the same hour (*higher throughput*).\n\nOn a server, threads are the waiters. Freeing one during I/O means the same pool serves many more concurrent requests — you scale, you don't accelerate the individual request." },
+
+    { id:"r-ienum", cat:"linq",
+      prompt:"IEnumerable vs IQueryable — what's the difference and why care?",
+      a:"**`IEnumerable<T>`** represents an in-memory sequence. LINQ over it runs as **LINQ-to-Objects** — the filtering happens in your app, in C#.\n\n**`IQueryable<T>`** represents a query that hasn't run yet. LINQ over it builds an **expression tree** that a provider (EF Core) **translates to SQL** and runs in the database.\n\nWhy it matters — the classic bug:\n```csharp\ndb.Orders.Where(o => o.Total > 100)   // IQueryable → WHERE in SQL ✅\ndb.Orders.ToList().Where(o => o.Total > 100) // IEnumerable → pulls ALL rows, filters in memory ❌\n```\nCall `ToList()`/`AsEnumerable()` too early and you drag the whole table across the wire, then filter in C#. Keep it `IQueryable` until the database has done all the work it can." },
+
+    { id:"r-deferred", cat:"linq",
+      prompt:"Deferred execution in LINQ — what is it and where does it bite people?",
+      a:"Most LINQ operators (`Where`, `Select`, `OrderBy`) are **lazy** — they don't run when you write them, they build a pipeline. Execution happens only when you **enumerate**: `foreach`, `ToList()`, `Count()`, `First()`.\n\nTwo bites:\n\n**Multiple enumeration** — if you hold a query in a variable and enumerate it twice, the work (and the DB round-trip) happens **twice**. Materialise once with `ToList()` if you'll reuse it.\n\n**Captured variables / closures** — the query reads the variable's value at *execution* time, not definition time. Change it in a loop before enumerating and you get surprises.\n\nOne line: LINQ describes work; enumeration performs it — know which line actually hits the database." },
+
+    { id:"r-dbcontext", cat:"data",
+      prompt:"EF Core DbContext — what is it, and why is its lifetime Scoped?",
+      a:"`DbContext` is EF Core's **unit of work + identity map**. It represents a session with the database: it tracks the entities you've loaded, records the changes you make, and on `SaveChanges()` writes them all in **one transaction**. Its `DbSet<T>` properties are your queryable tables.\n\n**Change tracking:** load an entity, mutate a property, call `SaveChanges()` — EF diffs against the snapshot it kept and generates the `UPDATE`. No explicit save-per-field.\n\n**Why Scoped (per request):** it's a lightweight, **not thread-safe**, short-lived session. One per HTTP request means all the services in that request share one unit-of-work and one transaction boundary. Singleton would be a threading disaster and a memory leak (the change tracker grows forever); Transient would fragment your transaction across contexts." },
+
+    { id:"r-pgsql", cat:"data",
+      prompt:"PostgreSQL vs SQL Server — how would you compare them?",
+      a:"Both are mature relational databases; day to day with EF Core the app code barely changes — you swap the provider (`UseNpgsql` vs `UseSqlServer`).\n\n**PostgreSQL** — open-source, no licensing cost, famously strong on standards compliance and rich types: first-class **`JSONB`**, arrays, powerful indexing (GIN/GiST), great extensibility. Very popular in cloud-native / container stacks.\n\n**SQL Server** — Microsoft's, deep .NET/Windows/Azure integration, excellent tooling (SSMS), strong enterprise support; licensing cost is the trade-off.\n\nHonest positioning for me: my production data work has been **MySQL and SQL Server**, and I'm comfortable on the relational fundamentals — schema design, indexing, transactions, query tuning — which transfer directly. Picking up Postgres specifics like `JSONB` is a small step, not a relearn." },
+
+    { id:"r-nplus1", cat:"data",
+      prompt:"What's the N+1 query problem and how do you fix it?",
+      a:"You load N parent rows, then lazily access a navigation property in a loop — so EF fires **1 query for the parents + N queries** for each parent's children. 100 orders becomes 101 round-trips. It's the most common EF performance killer and it hides in code that looks innocent.\n\n**Fixes:**\n- **Eager load** with `.Include(o => o.Lines)` so it's one query with a join.\n- **Projection** — `.Select(o => new { o.Id, LineCount = o.Lines.Count })` to pull only what you need.\n- Watch out for lazy loading being on by default in some setups — that's what silently triggers it.\n\nHow you'd catch it: turn on EF query logging and watch for a burst of identical parameterised queries." },
+
+    { id:"r-k8s", cat:"k8s",
+      prompt:"Explain Kubernetes to me — pod, deployment, service.",
+      a:"Kubernetes is a **container orchestrator** — it runs your containers across a cluster of machines and keeps them in the state you declared.\n\n**Pod** — the smallest deployable unit: one (or a few tightly-coupled) containers sharing a network address. Pods are disposable — they come and go.\n\n**Deployment** — the declarative controller: \"I want 3 replicas of this image.\" It creates the pods, replaces ones that die, and handles **rolling updates** (spin up new, drain old) and rollbacks. You edit desired state; K8s reconciles reality to it.\n\n**Service** — a stable network endpoint (a fixed name + virtual IP) in front of a changing set of pods. Because pods are ephemeral and their IPs churn, the Service gives clients one address and **load-balances** across the healthy pods behind it.\n\nThe throughline: you declare *desired state*, the control loop continuously makes *actual state* match." },
+
+    { id:"r-probes", cat:"k8s",
+      prompt:"Liveness vs readiness probes — what's the difference?",
+      a:"Both are health checks Kubernetes runs against your container, but they answer different questions:\n\n**Liveness** — *\"is this app alive, or wedged?\"* If it fails, K8s **kills and restarts** the pod. Use it to recover from deadlocks/hangs where the process is up but stuck.\n\n**Readiness** — *\"is this app ready to receive traffic right now?\"* If it fails, K8s **stops routing requests** to the pod (pulls it out of the Service load-balancer) but does **not** kill it. Use it during startup (warming caches, waiting on a DB) or when a dependency is temporarily down.\n\nThe distinction that matters: failing readiness = *\"don't send me traffic yet\"*; failing liveness = *\"I'm broken, restart me.\"* Getting them mixed up means K8s restart-loops a pod that just needed a moment to warm up." },
+
+    { id:"r-broker", cat:"design",
+      prompt:"RabbitMQ vs Kafka — when would you pick each?",
+      a:"Both move messages between services, but they're built on different models:\n\n**RabbitMQ** — a traditional **message broker / queue**. A message is delivered to a consumer and, once acknowledged, it's **gone**. Rich routing (exchanges, routing keys), great for **task/work queues** and request-style workloads — \"process this payment,\" \"send this email.\"\n\n**Kafka** — a **distributed, append-only log**. Messages are **retained** for a configured window, and consumers track their own offset — so multiple consumers can read the same stream independently and you can **replay** from any point. Built for **high-throughput event streaming**, event sourcing, feeding analytics.\n\nRule of thumb: *\"do this task\" → RabbitMQ; \"this happened, and others may care now or later\" → Kafka.* Kafka for durable replayable streams, Rabbit for routed work queues." },
+
+    { id:"r-idem", cat:"design",
+      prompt:"At-least-once delivery and idempotency — why do they go together?",
+      a:"Most brokers guarantee **at-least-once** delivery: to be sure a message isn't lost, they'll redeliver if they don't get an ack — which means a consumer can receive the **same message more than once** (a retry, a network blip, a redeploy mid-processing).\n\nSo the consumer **must be idempotent**: processing the same message twice must have the **same effect as processing it once**. Otherwise you double-charge a card or issue a policy twice.\n\n**How you make it idempotent:**\n- Give each message a stable **unique key** (message id / business key).\n- Before acting, check whether that key was already processed — a **dedup table** or a unique DB constraint.\n- Do the check-and-write **atomically** (a transaction / an upsert) so two concurrent copies can't both slip through.\n\nOne line: at-least-once means duplicates *will* happen, so correctness has to live in the consumer, not the broker." },
+
+    { id:"r-star", cat:"exp",
+      prompt:"STAR: tell me about a hard production problem you solved.",
+      a:"**Situation** — On the insurance platform at Senang, issuance ran off asynchronous messages. Under load and retries we saw **duplicate policy issuance** — the same request occasionally produced two policies, which is a real financial and compliance problem.\n\n**Task** — Make issuance safe under at-least-once delivery without losing throughput.\n\n**Action** — I made the consumer **idempotent**: each issuance request carried a stable business key; before issuing I checked that key against a dedup record, and I did the check-and-insert **atomically in one transaction** with a unique constraint as the backstop, so two concurrent retries couldn't both succeed. I added retry/recovery around the payment callbacks and reconciliation to catch anything that slipped.\n\n**Result** — Duplicate issuance stopped; retries became safe by design rather than by luck, and the same pattern carried over to the payment flows (FPX, QR, card via PayNet)." },
+
+    { id:"r-why", cat:"exp",
+      prompt:"Why do you want to go back to C#/.NET after years in Angular/Node?",
+      a:"I'll be honest about the timeline: my heaviest hands-on .NET was 2018 to 2023, and recently I've been leading Angular and Node work. But two things make this a *return*, not a leap.\n\nFirst, the **fundamentals never left** — the OOP and SOLID thinking, async, DI, clean layering — I've been applying every one of those in TypeScript daily. The mental model is identical; it's the syntax I'm refreshing, not the concepts.\n\nSecond, it's a **deliberate choice**. Strongly-typed, backend-heavy, transactional systems are the work I do best and enjoy most — the payments and issuance work I'm proudest of is exactly that shape. .NET is where I want to go deep again, and I've been actively rebuilding the muscle memory rather than waiting to be handed it." }
+  ];
+
+  var QUIZ = [
+    { id:"q-scoped", cat:"oop",
+      prompt:"Which DI lifetime gives one instance per HTTP request?",
+      choices:[["AddSingleton",0],["AddScoped",1],["AddTransient",0],["AddRequest",0]],
+      e:"**Scoped** = one instance per scope, which in ASP.NET Core is per HTTP request. Singleton is one for the whole app; Transient is a new one every resolution; `AddRequest` isn't a thing." },
+
+    { id:"q-single", cat:"oop",
+      prompt:"You register a stateless clock that's safe to share app-wide. Which lifetime?",
+      choices:[["AddSingleton",1],["AddScoped",0],["AddTransient",0],["It can't be shared",0]],
+      e:"**Singleton** — one instance for the whole app is exactly right for a stateless, thread-safe shared service like a clock or config." },
+
+    { id:"q-record", cat:"lang",
+      prompt:"Two `record` instances with identical member values are compared with `==`. Result?",
+      choices:[["false — different objects",0],["true — value-based equality",1],["Compile error",0],["Reference equality, so false",0]],
+      e:"**true.** Records get compiler-generated **value-based equality** — equal when all members match. That's the headline difference from a class, which uses reference identity." },
+
+    { id:"q-struct", cat:"lang",
+      prompt:"A `struct` passed to a method is modified inside it. Does the caller see the change?",
+      choices:[["Yes — same object",0],["No — it was copied",1],["Only if it's public",0],["Only with `ref`",1]],
+      e:"**No** — a struct is a value type, so it's copied on the call; the method mutates its own copy. (Two answers are defensible: `ref` *would* let the caller see it — that's the honest nuance.)" },
+
+    { id:"q-string", cat:"lang",
+      prompt:"`string` in C# is…",
+      choices:[["a value type",0],["a reference type that is immutable",1],["a struct",0],["mutable like a char array",0]],
+      e:"**A reference type that's immutable.** It lives on the heap like other reference types, but because it can't be changed in place it *behaves* value-like. Heavy concatenation → use `StringBuilder`." },
+
+    { id:"q-iqueryable", cat:"linq",
+      prompt:"`db.Orders.Where(o => o.Total > 100)` on an `IQueryable`. Where does the filter run?",
+      choices:[["In C#, after loading all rows",0],["In the database, as SQL WHERE",1],["Nowhere until enumerated — then in SQL",1],["In memory, always",0]],
+      e:"It translates to a SQL `WHERE` and runs **in the database** — but only when the query is enumerated (deferred). Both those answers are right. Call `ToList()` *before* `Where` and you'd instead pull every row and filter in memory." },
+
+    { id:"q-asyncvoid", cat:"async",
+      prompt:"Which async return type should you avoid (outside event handlers)?",
+      choices:[["Task",0],["Task<T>",0],["async void",1],["ValueTask",0]],
+      e:"**`async void`.** Its exceptions can't be caught by the caller and it can't be awaited, so failures crash the process. Use `Task`/`Task<T>` so callers can await and handle errors." },
+
+    { id:"q-dict", cat:"linq",
+      prompt:"You need average O(1) lookup by key. Which collection?",
+      choices:[["List<T>",0],["Dictionary<K,V>",1],["Array",0],["Queue<T>",0]],
+      e:"**`Dictionary<K,V>`** — hash-based, average O(1) lookup/insert. A `List` lookup by value is O(n)." },
+
+    { id:"q-const", cat:"lang",
+      prompt:"Difference between `const` and `readonly`?",
+      choices:[["No difference",0],["const = compile-time constant; readonly = set once at runtime (e.g. in a constructor)",1],["readonly is compile-time",0],["const can change per instance",0]],
+      e:"**`const`** is baked in at compile time and must be a literal. **`readonly`** can be assigned at runtime — typically in the constructor — and can differ per instance. Reach for `readonly` when the value isn't known until construction." },
+
+    { id:"q-dip", cat:"oop",
+      prompt:"Which principle says the interface should be owned by the consumer, and abstractions shouldn't depend on details?",
+      choices:[["Single Responsibility",0],["Liskov Substitution",0],["Dependency Inversion",1],["Interface Segregation",0]],
+      e:"**Dependency Inversion.** Policy and detail both depend on an abstraction that lives with the policy side — `IOrderRepository` in the domain, `SqlOrderRepository` in infrastructure pointing up at it." },
+
+    { id:"q-liskov", cat:"oop",
+      prompt:"`IList<int> l = new[]{1,2,3}; l.Add(4);` throws NotSupportedException. Which principle does this illustrate breaking?",
+      choices:[["Open/Closed",0],["Liskov Substitution",1],["Encapsulation",0],["Interface Segregation",0]],
+      e:"**Liskov.** An array is a fixed-size `IList<T>` that can't honour `Add` — a subtype that throws what the base contract allows. It's exactly why `IReadOnlyList<T>` exists." },
+
+    { id:"q-readiness", cat:"k8s",
+      prompt:"A pod's readiness probe fails. What does Kubernetes do?",
+      choices:[["Restarts the pod",0],["Stops routing traffic to it, but leaves it running",1],["Deletes the deployment",0],["Nothing",0]],
+      e:"**Stops routing traffic** — pulls it out of the Service load-balancer but leaves it alive. Restarting on failure is the *liveness* probe. Readiness = 'not ready for traffic yet'." },
+
+    { id:"q-liveness", cat:"k8s",
+      prompt:"Which probe, on failure, causes Kubernetes to kill and restart the container?",
+      choices:[["Readiness",0],["Liveness",1],["Startup only",0],["Neither",0]],
+      e:"**Liveness.** It answers 'is the app wedged?' — failure triggers a restart. Readiness only controls traffic routing." },
+
+    { id:"q-atleastonce", cat:"design",
+      prompt:"Your broker guarantees at-least-once delivery. What must the consumer be?",
+      choices:[["Faster",0],["Idempotent",1],["Single-threaded",0],["Stateless",0]],
+      e:"**Idempotent** — at-least-once means the same message can arrive twice, so processing it twice must equal processing it once (dedup key + atomic check-and-write). Otherwise: double-charge, double-issue." },
+
+    { id:"q-kafka", cat:"design",
+      prompt:"You need multiple independent consumers to read the same event stream and replay from an earlier point. Which fits best?",
+      choices:[["RabbitMQ",0],["Kafka",1],["A database table poll",0],["HTTP webhooks",0]],
+      e:"**Kafka** — an append-only log that retains messages and lets each consumer track its own offset, so streams can be re-read and replayed. RabbitMQ deletes a message once it's acked." },
+
+    { id:"q-task", cat:"async",
+      prompt:"Best default for running asynchronous work in modern C#?",
+      choices:[["new Thread(...)",0],["Task / async-await on the thread pool",1],["A busy-wait loop",0],["ThreadPool.QueueUserWorkItem manually",0]],
+      e:"**Task with async/await.** Tasks run on the shared thread pool and the runtime schedules them; raw `Thread` objects are heavyweight and rarely what you want now." },
+
+    { id:"q-using", cat:"lang",
+      prompt:"What does a `using` statement / declaration guarantee?",
+      choices:[["The object is garbage collected immediately",0],["Dispose() is called when the block exits, even on exception",1],["The object can't be null",0],["Thread safety",0]],
+      e:"**`Dispose()` is called on scope exit**, even if an exception is thrown — the deterministic cleanup for `IDisposable` resources (DB connections, files, streams). It's not GC; it's the try/finally you don't have to write." },
+
+    { id:"q-throughput", cat:"async",
+      prompt:"Making a single database call `async` will…",
+      choices:[["Make that call return faster",0],["Free the thread during the wait, improving throughput",1],["Reduce the query's execution time",0],["Run the query on multiple cores",0]],
+      e:"**Free the thread**, so the server handles more concurrent work — throughput, not single-call speed. The 200ms query still takes 200ms; you've just stopped parking a thread on it." },
+
+    { id:"q-isp", cat:"oop",
+      prompt:"An implementation is full of `throw new NotImplementedException()`. Which SOLID smell is that?",
+      choices:[["Open/Closed",0],["Interface Segregation — the interface is too fat",1],["Liskov",0],["Single Responsibility",0]],
+      e:"**Interface Segregation.** Clients are forced to implement methods they don't use. Split the fat interface (e.g. `IReadRepository` / `IWriteRepository`) so each client depends only on what it calls. ISP is SRP for interfaces." },
+
+    { id:"q-defer", cat:"linq",
+      prompt:"You store a LINQ query in a variable and `foreach` over it twice. What happens?",
+      choices:[["It runs once, cached",0],["It executes twice — two DB round-trips",1],["Compile error",0],["Only the first item is read",0]],
+      e:"**Executes twice** — LINQ is deferred, so each enumeration re-runs the pipeline (and re-hits the database). Materialise once with `ToList()` if you'll iterate more than once." }
+  ];
+
+  /* ════════════════════════════════════════════════════════
+     STATE + PERSISTENCE
+     ════════════════════════════════════════════════════════ */
+  var KEY = "csharp-drill-v2";
+  var MAX_BOX = 4;                // mastered at box 4
+  var state = load();
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return { cards: {}, streak: 0, mode: "recall", cat: "all", theme: null };
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+  function prog(id) {
+    if (!state.cards[id]) state.cards[id] = { box: 0, right: 0, wrong: 0, seen: 0 };
+    return state.cards[id];
+  }
+
+  /* ════════════════════════════════════════════════════════
+     ELEMENTS
+     ════════════════════════════════════════════════════════ */
+  var el = {
+    card: document.getElementById("card"),
+    cat: document.getElementById("cat"),
+    theme: document.getElementById("theme"),
+    modeRecall: document.getElementById("mode-recall"),
+    modeQuiz: document.getElementById("mode-quiz"),
+    mastered: document.getElementById("s-mastered"),
+    total: document.getElementById("s-total"),
+    pos: document.getElementById("s-pos"),
+    deck: document.getElementById("s-deck"),
+    bar: document.getElementById("bar"),
+    streak: document.getElementById("s-streak"),
+    fkeys: document.getElementById("fkeys"),
+    reset: document.getElementById("reset")
+  };
+
+  var SUN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path stroke-linecap="round" d="M12 2v2m0 16v2M4 12H2m20 0h-2M5.6 5.6 4.2 4.2m15.6 15.6-1.4-1.4M18.4 5.6l1.4-1.4M4.2 19.8l1.4-1.4"/></svg>';
+  var MOON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>';
+
+  /* ════════════════════════════════════════════════════════
+     DECK BUILDING (Leitner: weak boxes surface first)
+     ════════════════════════════════════════════════════════ */
+  var deck = [], idx = 0, revealed = false, answered = false;
+
+  function activeBank() { return state.mode === "quiz" ? QUIZ : RECALL; }
+
+  function buildDeck() {
+    var bank = activeBank().filter(function (q) {
+      return state.cat === "all" || q.cat === state.cat;
+    });
+    // order: lowest box first (weakest / newest), then least seen, then shuffle within
+    bank.sort(function (a, b) {
+      var pa = prog(a.id), pb = prog(b.id);
+      if (pa.box !== pb.box) return pa.box - pb.box;
+      if (pa.seen !== pb.seen) return pa.seen - pb.seen;
+      return Math.random() - 0.5;
+    });
+    deck = bank;
+    idx = 0;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     MINI MARKDOWN  (bold, inline code, code fences, paragraphs)
+     ════════════════════════════════════════════════════════ */
+  function esc(s) {
+    return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  }
+  function inline(s) {
+    s = esc(s);
+    s = s.replace(/`([^`]+)`/g, function (_, c) { return "<code>" + c + "</code>"; });
+    s = s.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+    return s;
+  }
+  function md(text) {
+    var parts = text.split("```");
+    var out = "";
+    for (var i = 0; i < parts.length; i++) {
+      if (i % 2 === 1) {
+        out += "<pre><code>" + esc(parts[i].replace(/^\n/, "").replace(/\n$/, "")) + "</code></pre>";
+      } else {
+        var paras = parts[i].split(/\n\n+/);
+        for (var p = 0; p < paras.length; p++) {
+          var t = paras[p].trim();
+          if (t) out += "<p>" + inline(t).replace(/\n/g, "<br>") + "</p>";
+        }
+      }
+    }
+    return out;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     RENDER
+     ════════════════════════════════════════════════════════ */
+  function masteryPips(box) {
+    var h = '<span class="mastery" title="Mastery level ' + box + ' of ' + MAX_BOX + '">';
+    for (var i = 1; i <= MAX_BOX; i++) h += '<span class="pip ' + (i <= box ? "on" : "") + '"></span>';
+    h += box >= MAX_BOX ? '<small>mastered</small>' : '';
+    h += "</span>";
+    return h;
+  }
+
+  function render() {
+    revealed = false; answered = false;
+
+    if (!deck.length) {
+      el.card.innerHTML =
+        '<div class="card-top"><span class="chip">empty</span></div>' +
+        '<p class="prompt">No cards in this filter.</p>' +
+        '<p class="say">Pick another category above, or reset progress.</p>';
+      updateStats();
+      return;
+    }
+    if (idx >= deck.length) { buildDeck(); }   // loop the pass, re-sorted by new boxes
+
+    var q = deck[idx];
+    var p = prog(q.id);
+
+    if (state.mode === "quiz") renderQuiz(q, p);
+    else renderRecall(q, p);
+    updateStats();
+  }
+
+  function renderRecall(q, p) {
+    el.card.innerHTML =
+      '<div class="card-top">' +
+        '<span class="chip">' + CATS[q.cat] + '</span>' +
+        masteryPips(p.box) +
+      '</div>' +
+      '<p class="prompt">' + inline(q.prompt) + '</p>' +
+      '<p class="say">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v10m0 0a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v4a3 3 0 0 0 3 3Zm-6 -2a6 6 0 0 0 12 0M12 18v3"/></svg>' +
+        'Answer it out loud, as if to the interviewer — then reveal to check.' +
+      '</p>' +
+      '<div class="grow"></div>' +
+      '<div class="controls" id="ctrl">' +
+        '<button class="btn primary" id="reveal">Reveal answer &nbsp;<span style="opacity:.7;font-family:var(--mono);font-size:12px">space</span></button>' +
+      '</div>';
+    document.getElementById("reveal").onclick = reveal;
+
+    function reveal() {
+      revealed = true;
+      var grow = el.card.querySelector(".grow");
+      grow.insertAdjacentHTML("beforebegin",
+        '<div class="answer"><div class="lbl">Model answer</div><div class="prose">' + md(q.a) + '</div></div>');
+      document.getElementById("ctrl").innerHTML =
+        '<div class="grade">' +
+          '<button class="got" data-g="got">Got it<span class="k">1</span></button>' +
+          '<button class="shk" data-g="shk">Shaky<span class="k">2</span></button>' +
+          '<button class="mis" data-g="mis">Missed<span class="k">3</span></button>' +
+        '</div>';
+      Array.prototype.forEach.call(el.card.querySelectorAll(".grade button"), function (b) {
+        b.onclick = function () { grade(q, b.getAttribute("data-g")); };
+      });
+      el.card.querySelector(".answer").scrollIntoView({ block: "nearest", behavior: prefersMotion() ? "smooth" : "auto" });
+    }
+    el.reveal = reveal;
+  }
+
+  function grade(q, g) {
+    var p = prog(q.id);
+    p.seen++;
+    if (g === "got") { p.right++; p.box = Math.min(MAX_BOX, p.box + 1); state.streak++; }
+    else if (g === "shk") { /* hold box */ state.streak = 0; }
+    else { p.wrong++; p.box = 0; state.streak = 0; }   // missed → back to start
+    save();
+    next();
+  }
+
+  function renderQuiz(q, p) {
+    var order = q.choices.map(function (c, i) { return i; });
+    // stable-ish shuffle
+    for (var i = order.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = order[i]; order[i] = order[j]; order[j] = t;
+    }
+    var html =
+      '<div class="card-top">' +
+        '<span class="chip">' + CATS[q.cat] + '</span>' +
+        masteryPips(p.box) +
+      '</div>' +
+      '<p class="prompt">' + inline(q.prompt) + '</p>' +
+      '<div class="say" style="margin-bottom:20px">Pick one, or press keys <kbd style="font-family:var(--mono)">1</kbd>&ndash;<kbd style="font-family:var(--mono)">' + order.length + '</kbd></div>';
+    html += '<div class="choices" id="choices">';
+    order.forEach(function (ci, pos) {
+      html += '<button class="choice" data-ci="' + ci + '" data-pos="' + pos + '">' +
+              '<span class="key">' + (pos + 1) + '</span><span>' + inline(q.choices[ci][0]) + '</span></button>';
+    });
+    html += '</div><div class="grow"></div><div class="controls" id="ctrl"></div>';
+    el.card.innerHTML = html;
+
+    quizOrder = order;
+    Array.prototype.forEach.call(el.card.querySelectorAll(".choice"), function (b) {
+      b.onclick = function () { pickChoice(q, parseInt(b.getAttribute("data-ci"), 10)); };
+    });
+  }
+
+  var quizOrder = [];
+  function pickChoice(q, ci) {
+    if (answered) return;
+    answered = true;
+    var correct = q.choices[ci][1] === 1;
+    var p = prog(q.id);
+    p.seen++;
+    if (correct) { p.right++; p.box = Math.min(MAX_BOX, p.box + 1); state.streak++; }
+    else { p.wrong++; p.box = Math.max(0, p.box - 1); state.streak = 0; }
+    save();
+
+    Array.prototype.forEach.call(el.card.querySelectorAll(".choice"), function (b) {
+      var bci = parseInt(b.getAttribute("data-ci"), 10);
+      b.disabled = true;
+      if (q.choices[bci][1] === 1) b.classList.add("correct");
+      else if (bci === ci) b.classList.add("wrong");
+    });
+
+    document.getElementById("ctrl").innerHTML =
+      '<div class="explain">' + inline(q.e) + '</div>' +
+      '<button class="btn primary" id="qnext" style="margin-top:16px">Next &nbsp;<span style="opacity:.7;font-family:var(--mono);font-size:12px">space</span></button>';
+    document.getElementById("qnext").onclick = next;
+    updateStats();
+  }
+
+  function next() { idx++; render(); }
+
+  /* ════════════════════════════════════════════════════════
+     STATS
+     ════════════════════════════════════════════════════════ */
+  function updateStats() {
+    var bank = activeBank().filter(function (q) { return state.cat === "all" || q.cat === state.cat; });
+    var mastered = bank.filter(function (q) { return prog(q.id).box >= MAX_BOX; }).length;
+    el.mastered.textContent = mastered;
+    el.total.textContent = bank.length;
+    el.deck.textContent = deck.length;
+    el.pos.textContent = deck.length ? Math.min(idx + 1, deck.length) : 0;
+    el.bar.style.width = bank.length ? (mastered / bank.length * 100) + "%" : "0%";
+    el.streak.textContent = state.streak;
+  }
+
+  /* ════════════════════════════════════════════════════════
+     CONTROLS WIRING
+     ════════════════════════════════════════════════════════ */
+  function buildCatOptions() {
+    var opts = '<option value="all">All categories</option>';
+    Object.keys(CATS).forEach(function (k) {
+      opts += '<option value="' + k + '">' + CATS[k] + '</option>';
+    });
+    el.cat.innerHTML = opts;
+    el.cat.value = state.cat;
+  }
+
+  function setMode(m) {
+    state.mode = m; save();
+    el.modeRecall.setAttribute("aria-pressed", m === "recall");
+    el.modeQuiz.setAttribute("aria-pressed", m === "quiz");
+    buildDeck(); render();
+  }
+
+  el.modeRecall.onclick = function () { setMode("recall"); };
+  el.modeQuiz.onclick = function () { setMode("quiz"); };
+  el.cat.onchange = function () { state.cat = el.cat.value; save(); buildDeck(); render(); };
+
+  el.reset.onclick = function () {
+    if (!confirm("Reset all mastery progress and streak? Your cards go back to unseen.")) return;
+    state.cards = {}; state.streak = 0; save();
+    buildDeck(); render();
+  };
+
+  /* ── Theme ─────────────────────────────────────────── */
+  function currentTheme() {
+    if (state.theme) return state.theme;
+    return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function applyTheme() {
+    var t = currentTheme();
+    document.documentElement.setAttribute("data-theme", t);
+    el.theme.innerHTML = t === "dark" ? SUN : MOON;
+  }
+  el.theme.onclick = function () {
+    state.theme = currentTheme() === "dark" ? "light" : "dark";
+    save(); applyTheme();
+  };
+
+  function prefersMotion() { return !matchMedia("(prefers-reduced-motion: reduce)").matches; }
+
+  /* ── Keyboard ──────────────────────────────────────── */
+  el.fkeys.innerHTML =
+    '<kbd>space</kbd> reveal / next &nbsp;·&nbsp; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> grade &nbsp;·&nbsp; <kbd>m</kbd> mode';
+
+  document.addEventListener("keydown", function (e) {
+    if (e.target.tagName === "SELECT" || e.metaKey || e.ctrlKey || e.altKey) return;
+    var k = e.key.toLowerCase();
+
+    if (k === "m") { setMode(state.mode === "quiz" ? "recall" : "quiz"); e.preventDefault(); return; }
+
+    if (state.mode === "recall") {
+      if ((k === " " || k === "enter") && !revealed) { e.preventDefault(); if (el.reveal) el.reveal(); return; }
+      if (revealed && (k === "1" || k === "2" || k === "3")) {
+        e.preventDefault();
+        grade(deck[idx], k === "1" ? "got" : k === "2" ? "shk" : "mis");
+      }
+    } else {
+      if (!answered && quizOrder.length) {
+        var n = parseInt(k, 10);
+        if (n >= 1 && n <= quizOrder.length) {
+          e.preventDefault();
+          var q = deck[idx];
+          pickChoice(q, quizOrder[n - 1]);
+          return;
+        }
+      }
+      if (answered && (k === " " || k === "enter")) { e.preventDefault(); next(); }
+    }
+  });
+
+  /* ── Boot ──────────────────────────────────────────── */
+  buildCatOptions();
+  el.modeRecall.setAttribute("aria-pressed", state.mode === "recall");
+  el.modeQuiz.setAttribute("aria-pressed", state.mode === "quiz");
+  applyTheme();
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { if (!state.theme) applyTheme(); });
+  buildDeck();
+  render();
+})();
+</script>
+</body>
+</html>
