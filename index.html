@@ -247,9 +247,16 @@
   .notes-doc > .note-h2:first-child { margin-top: 0; }
   .notes-doc { font-size: 15.5px; }
   .notes-doc p { margin: 0 0 11px; }
-  .note-block + .note-block { margin-top: 34px; padding-top: 28px; border-top: 2px solid var(--line); }
   .stats-group { display: contents; }
   .stats-note { color: var(--muted); }
+  .note-count {
+    margin-left: auto; font-family: var(--mono); font-size: 11px;
+    color: var(--faint); letter-spacing: .04em; font-variant-numeric: tabular-nums;
+  }
+  .note-nav { display: grid; grid-template-columns: auto 1fr; gap: 10px; }
+  .btn.nav-prev { color: var(--muted); }
+  .btn.nav-prev:disabled { opacity: .4; cursor: default; }
+  .btn.nav-prev:disabled:hover { border-color: var(--line); }
 
   /* ── Controls ───────────────────────────────────────── */
   .controls { margin-top: 26px; }
@@ -1004,10 +1011,12 @@
      DECK BUILDING (Leitner: weak boxes surface first)
      ════════════════════════════════════════════════════════ */
   var deck = [], idx = 0, revealed = false, answered = false;
+  var notesDeck = [], noteIdx = 0;
 
   function activeBank() { return state.mode === "quiz" ? QUIZ : RECALL; }
 
   function buildDeck() {
+    if (state.mode === "notes") return buildNotes();
     var bank = activeBank().filter(function (q) {
       return state.cat === "all" || q.cat === state.cat;
     });
@@ -1020,6 +1029,21 @@
     });
     deck = bank;
     idx = 0;
+  }
+
+  // Split each category's notes into ## sections — one section per note card.
+  function buildNotes() {
+    var cats = state.cat === "all" ? Object.keys(CATS) : [state.cat];
+    var items = [];
+    cats.forEach(function (c) {
+      if (!NOTES[c]) return;
+      NOTES[c].split(/\n(?=## )/).forEach(function (sec) {
+        sec = sec.trim();
+        if (sec) items.push({ cat: c, body: sec });
+      });
+    });
+    notesDeck = items;
+    noteIdx = 0;
   }
 
   /* ════════════════════════════════════════════════════════
@@ -1115,22 +1139,45 @@
   }
 
   function renderNotes() {
-    var cats = state.cat === "all" ? Object.keys(CATS) : [state.cat];
-    var html = "";
-    cats.forEach(function (c) {
-      if (!NOTES[c]) return;
-      html += '<div class="note-block">' +
-                '<div class="card-top"><span class="chip">' + CATS[c] + '</span></div>' +
-                '<div class="prose notes-doc">' + md(NOTES[c]) + '</div>' +
-              '</div>';
-    });
-    if (!html) html = '<p class="prompt">Notes for this section are coming soon.</p>';
-    el.card.innerHTML = html;
-    el.statsNotes.textContent = (state.cat === "all"
-        ? "Read through — then switch to Recall to test yourself"
-        : "Reading: " + CATS[state.cat] + " — then switch to Recall");
+    if (!notesDeck.length) {
+      el.card.innerHTML = '<div class="card-top"><span class="chip">empty</span></div>' +
+        '<p class="prompt">Notes for this section are coming soon.</p>';
+      el.statsNotes.textContent = "";
+      return;
+    }
+    if (noteIdx < 0) noteIdx = 0;
+    if (noteIdx > notesDeck.length - 1) noteIdx = notesDeck.length - 1;
+
+    var it = notesDeck[noteIdx];
+    var last = noteIdx === notesDeck.length - 1;
+
+    el.card.innerHTML =
+      '<div class="card-top">' +
+        '<span class="chip">' + CATS[it.cat] + '</span>' +
+        '<span class="note-count">' + (noteIdx + 1) + ' / ' + notesDeck.length + '</span>' +
+      '</div>' +
+      '<div class="prose notes-doc">' + md(it.body) + '</div>' +
+      '<div class="grow"></div>' +
+      '<div class="controls"><div class="note-nav">' +
+        '<button class="btn nav-prev" id="note-prev"' + (noteIdx === 0 ? ' disabled' : '') + '>&larr; Prev</button>' +
+        '<button class="btn primary" id="note-next">' +
+          (last ? 'Start Recall &nbsp;<span style="opacity:.7;font-family:var(--mono);font-size:12px">&rarr;</span>'
+                : 'Next &nbsp;<span style="opacity:.7;font-family:var(--mono);font-size:12px">&rarr;</span>') +
+        '</button>' +
+      '</div></div>';
+
+    document.getElementById("note-prev").onclick = notePrev;
+    document.getElementById("note-next").onclick = advanceNotes;
+    el.statsNotes.textContent = (state.cat === "all" ? "All sections" : CATS[state.cat]) +
+      " — read, then switch to Recall";
     window.scrollTo({ top: 0, behavior: prefersMotion() ? "smooth" : "auto" });
   }
+
+  function advanceNotes() {
+    if (noteIdx >= notesDeck.length - 1) setMode("recall");   // finished reading → go test
+    else { noteIdx++; renderNotes(); }
+  }
+  function notePrev() { if (noteIdx > 0) { noteIdx--; renderNotes(); } }
 
   function renderRecall(q, p) {
     el.card.innerHTML =
@@ -1305,7 +1352,7 @@
 
   /* ── Keyboard ──────────────────────────────────────── */
   el.fkeys.innerHTML =
-    '<kbd>space</kbd> reveal / next &nbsp;·&nbsp; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> grade &nbsp;·&nbsp; <kbd>m</kbd> switch mode';
+    '<kbd>space</kbd> reveal / next &nbsp;·&nbsp; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> grade &nbsp;·&nbsp; <kbd>←</kbd><kbd>→</kbd> notes &nbsp;·&nbsp; <kbd>m</kbd> mode';
 
   document.addEventListener("keydown", function (e) {
     if (e.target.tagName === "SELECT" || e.metaKey || e.ctrlKey || e.altKey) return;
@@ -1313,7 +1360,11 @@
 
     if (k === "m") { cycleMode(); e.preventDefault(); return; }
 
-    if (state.mode === "notes") return;   // let the page scroll freely
+    if (state.mode === "notes") {
+      if (k === "arrowright" || k === "enter" || k === " ") { e.preventDefault(); advanceNotes(); }
+      else if (k === "arrowleft") { e.preventDefault(); notePrev(); }
+      return;
+    }
 
     if (state.mode === "recall") {
       if ((k === " " || k === "enter") && !revealed) { e.preventDefault(); if (el.reveal) el.reveal(); return; }
