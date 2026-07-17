@@ -253,6 +253,23 @@
     margin-left: auto; font-family: var(--mono); font-size: 11px;
     color: var(--faint); letter-spacing: .04em; font-variant-numeric: tabular-nums;
   }
+  .say-box {
+    margin-top: 24px; border-radius: 12px;
+    background: var(--accent-soft); border: 1px solid var(--line);
+    border-left: 3px solid var(--accent); padding: 15px 18px;
+  }
+  .say-lbl {
+    display: flex; align-items: center; gap: 7px;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--accent-strong); font-weight: 600; margin-bottom: 9px;
+  }
+  .say-lbl svg { width: 14px; height: 14px; flex: none; }
+  .say-box p {
+    margin: 0; font-family: var(--serif); font-size: 16px; line-height: 1.62;
+    color: var(--ink); font-style: italic;
+  }
+  .say-box p strong { font-style: normal; font-weight: 700; }
+  .say-box p code { font-style: normal; }
   .note-nav { display: grid; grid-template-columns: auto 1fr; gap: 10px; }
   .btn.nav-prev { color: var(--muted); }
   .btn.nav-prev:disabled { opacity: .4; cursor: default; }
@@ -961,6 +978,93 @@
   };
 
   /* ════════════════════════════════════════════════════════
+     SAY  — first-person spoken talking point per notes section,
+     aligned by index to NOTES[cat] section order. Rehearse aloud.
+     ════════════════════════════════════════════════════════ */
+  var SAY = {
+    behav: [
+"For behavioural questions I keep two shapes in my head. For 'tell me about a time', I use STAR and spend most of the time on what I actually did and the result. For 'tell me about yourself', I go now, then past, then why I'm here, and I keep it to about ninety seconds and end on the role.",
+"My rules are simple. I never bad-mouth an employer, I frame every move as toward something rather than away from it, and when I'm asked about a weakness I give a real one plus what I'm doing about it. And I always bring questions of my own, because part of this is me deciding it's the right fit too.",
+"I treat these as my prep set — tell me about yourself, why I'm leaving, strengths, weaknesses, leadership, all of them. I read the key beats, then I rehearse each one out loud until it sounds natural rather than memorised.",
+"On salary, if it comes up early I say I'd like to understand the scope first but I'm happy to share a range. If they push, I give a researched range and anchor on the value I bring, and I always know my floor going in so I'm never talked below it."
+    ],
+    lang: [
+"The way I explain C#'s type system is: value types like int and struct hold their data directly and get copied when you pass them, so the caller doesn't see your changes. Reference types like classes and strings hold a reference to something on the heap, so two variables can point at the same object and a change through one is visible through the other. The quick test is: if I pass it into a method and change it, does the caller see it? Value no, reference yes.",
+"I reach for a class when there's behaviour or changing state — that's my default. A record when it's immutable data like a DTO, because I get value equality and copies for free. And a struct for small lightweight values like a coordinate. The tell is equality: two records with the same contents are equal, two classes are only equal if they're literally the same object.",
+"One thing I'm careful about is that string is a reference type but it's immutable, so every change actually creates a new string. That's why it behaves value-like, and why if I'm concatenating heavily in a loop I switch to a StringBuilder instead of allocating a new string each time.",
+"var is just type inference — it's still fully static, the compiler knows the exact type, so it's nothing like JavaScript's any. Nullable reference types let the compiler track whether something can be null and warn me if I don't handle it. And the difference between const and readonly is that const is baked in at compile time as a literal, whereas readonly I can set once at runtime, usually in the constructor.",
+"When I've got something like a database connection or a file, I wrap it in a using block. That guarantees Dispose runs when I leave the scope, even if an exception is thrown — so it's the try-finally cleanup I don't have to write by hand.",
+"Modern C# leans a lot on pattern matching — things like 'if x is Vehicle v', or a switch expression on ranges. I like it because it replaces a lot of manual casting and null-checking, and the compiler can tell me if I've missed a case."
+    ],
+    oop: [
+"The four pillars I'd describe as: encapsulation, hiding state behind a public surface so nobody can put the object in a bad state; abstraction, exposing what something does and hiding how; inheritance, reusing a base class, though I lean toward composition; and polymorphism, one interface with many implementations, which is really what lets you replace big if-else chains with a clean virtual call.",
+"SOLID is five principles all aimed at changing code safely. Single responsibility, one reason to change. Open-closed, extend by adding new code rather than editing what already works. Liskov, a subtype has to behave correctly anywhere the base is used. Interface segregation, don't force a client to depend on methods it doesn't use. And dependency inversion, both policy and detail depend on an abstraction the policy side owns — so my domain defines the repository interface and the SQL implementation points up at it. And I'd add that dependency inversion isn't the same as dependency injection; DI is just a technique to achieve it.",
+"I use an interface when I'm describing a capability and I might have several implementations — plus it's easy to mock in tests. I reach for an abstract class when there's genuinely shared code, like a base gateway with common logging and one abstract method each concrete type fills in. The practical difference is you can implement many interfaces but inherit only one class.",
+"The thing I've learned is you can over-apply SOLID. An interface with one implementation that'll never have another is just indirection with extra files. So I apply it on the axis I actually expect to change, not everywhere by reflex."
+    ],
+    async: [
+"The way I frame it: a Thread is an actual OS thread, expensive, and you manage it yourself. A Task is a higher-level promise of work that runs on the shared thread pool and the runtime schedules it — so that's almost always what I reach for. And ASP.NET Core runs each request on a pool thread, so requests genuinely run in parallel.",
+"Async-await is about not blocking a thread while I wait on I/O, like a database or an HTTP call. When I await, the thread goes back to the pool to serve other requests, and my method resumes when the data's ready. Task is basically C#'s Promise and await is the pause point, which is why it felt natural coming from Node.",
+"The point I always make is async improves throughput, not the speed of any single call. A two-hundred-millisecond query still takes two hundred milliseconds — I've just stopped parking a thread on it, so the same pool serves far more concurrent requests. It's like a waiter taking other tables' orders while the kitchen cooks; the first meal doesn't arrive sooner, but you serve a lot more tables an hour.",
+"I'm careful to separate async from multithreading. Async is about freeing a thread during a wait, so it's for I/O-bound work. Multithreading is about using multiple cores for parallel work. .NET does both, but they're not the same thing.",
+"A few things I watch for. I never call dot-Result or dot-Wait on async code, because that blocks the thread I was trying to free and can deadlock — it's async all the way down. I avoid async void except for event handlers, because it can't be awaited and it swallows exceptions. And because .NET is genuinely multithreaded, shared state matters, which is exactly why DbContext is scoped: it's not thread-safe."
+    ],
+    linq: [
+"IEnumerable is the basic contract — forward-only iteration, and LINQ over it runs in memory in my process. IList adds indexing and a count, it's a fully materialised collection. IQueryable is the important one for EF Core: it holds an expression tree, a description of a query, that gets translated into SQL and run in the database. So the trap is calling ToList too early — then you pull the whole table into memory and filter in C# instead of in SQL.",
+"LINQ is deferred — writing a Where or a Select just builds a pipeline, and nothing runs until I enumerate it with something like ToList or a foreach. Two things bite people: if you enumerate the same query twice it runs twice, including two database round-trips, so I materialise once if I'll reuse it; and the query reads captured variables at execution time, not when you wrote it.",
+"I pick the collection by what I do most. A List for order and iteration — index access is order-one but searching by value is order-n. A Dictionary when I'm looking up by key, that's average order-one. A HashSet for uniqueness and fast membership checks. Queue and Stack for FIFO and LIFO."
+    ],
+    data: [
+"EF Core is the ORM — it maps my C# objects to database tables so I write LINQ instead of SQL. Each DbSet maps to a table, and the LINQ I write against it becomes SQL.",
+"The DbContext is the heart of EF Core — it's a unit of work, a change tracker, and my gateway to the database. I load an entity, change a property, call SaveChanges, and it works out the update for me and runs it in a transaction. It's registered scoped, one per request, because it's lightweight and not thread-safe — you never want to share one across concurrent requests.",
+"Migrations version the schema straight from the C# model — I add a property, run migrations-add and database-update, and EF generates the alter-table. The big win is the schema change lives in source control and flows through the same pipeline as the code, so I'm never hand-editing production.",
+"The classic performance trap is N-plus-one — you load a list and then lazily touch each row's related data, and a hundred rows becomes a hundred and one queries. I fix it by eager loading with Include so it's one joined query, or by projecting just what I need. And for read-only queries I use AsNoTracking to skip the change-tracking overhead.",
+"I keep DTOs separate from entities so I don't leak the database shape to clients and so a client can't over-post fields it shouldn't touch. My response DTO exposes only what the API needs, and my create DTO doesn't even have an id, so nobody can sneak a primary key in.",
+"When LINQ isn't the right tool — a heavy report or an existing stored proc — I drop to raw SQL, and I always pass values as parameters. That way something malicious is treated as a literal value, not as SQL to run."
+    ],
+    sql: [
+"A transaction groups statements into one atomic unit, and ACID is its four guarantees — atomicity, all or nothing; consistency, constraints never left broken; isolation, concurrent transactions don't corrupt each other; and durability, once it's committed it survives a crash. I reach for one on any multi-step write that has to stay consistent, like a payment or an issuance.",
+"Isolation level is how much concurrent transactions can interfere, and it's a trade-off with concurrency. Read committed is the usual default and it stops dirty reads. As you go up through repeatable read to serializable you remove more anomalies — the three to name are dirty reads, non-repeatable reads, and phantom reads.",
+"An index is a sorted structure, usually a B-tree, that lets the database find rows without scanning the whole table. You get one clustered index per table, which is the physical order, and as many non-clustered as you like. The trade-off is reads get faster but writes get slower, because every index has to be maintained — so I index the columns I actually filter, join, and sort on.",
+"Inner join gives me rows that match in both tables; left join keeps everything on the left with nulls where there's no match. A neat one they like to ask is 'customers with no orders' — that's a left join with a where-is-null. On keys: primary key is unique identity, foreign key enforces referential integrity, and a unique constraint stops duplicates — I actually use a unique constraint as the last-line backstop for idempotency.",
+"Normalization is organising tables so each fact lives in one place, which avoids update anomalies. Denormalization is the deliberate opposite — duplicating data to make reads faster, which you see in reporting. So I normalize for integrity and denormalize for read performance, depending on the workload.",
+"A deadlock is two transactions each holding a lock the other needs, and the database kills one. I avoid it by touching rows in a consistent order, keeping transactions short, and retrying the victim. For concurrent updates I usually prefer optimistic locking — a version column checked on update — over pessimistic locking, because conflicts are rare in most web apps.",
+"When a query's slow, I read the execution plan first rather than guessing. Then I fix indexes on the where, join and order-by columns, select only the columns I need, and avoid wrapping an indexed column in a function because that stops it using the index. And I watch for the ORM firing N-plus-one. Caching or denormalising only comes after the query itself is tight."
+    ],
+    k8s: [
+"The mental model for Kubernetes is you declare desired state and a control loop keeps making reality match it. A pod is the smallest unit, one or more containers sharing a network identity. A deployment says I want three of these and replaces any that die. And a service is a stable address that load-balances across the healthy pods, because the pods themselves come and go.",
+"There are three health checks. Readiness asks can it take traffic, and if it fails the pod is pulled out of the service but not restarted. Liveness asks is it wedged, and if it fails the container is restarted. Startup holds the other two off while a slow app boots. The quick tell is READY zero-of-one points at readiness, whereas a climbing restart count points at liveness.",
+"For almost any pod issue I run the same three commands. Get pods to see the status, describe pod to read the events — that's where Kubernetes tells you about scheduling, image pulls and probes — and logs, with dash-previous if it crashed. The rule of thumb is if the container never started it's in describe, if it started and then failed it's in the logs.",
+"The common failure states each have a signature. CrashLoopBackOff means it starts and dies repeatedly, usually bad config — I check logs dash-previous. ImagePullBackOff means it can't pull the image, a bad tag or auth. Pending means it can't be scheduled, usually not enough CPU or memory. And OOMKilled means it hit its memory limit — over the memory limit you get killed, over the CPU limit you just get throttled.",
+"Requests are the guaranteed minimum the scheduler uses to place a pod, so it only lands on a node with that much free. Limits are the hard ceiling — go over memory and you're OOMKilled, go over CPU and you're throttled rather than killed.",
+"If a deploy goes bad, I use helm history to find the last good revision and helm rollback to restore it — though in production I'd rather re-run the deploy for the previous good tag so the revert is tracked in git. My pipeline is three stages: build and scan, dockerize with the image tagged by commit SHA, then deploy with a helm upgrade. Production is gated behind a version tag, not a branch push, so a prod deploy is always deliberate."
+    ],
+    azure: [
+"For compute I pick by how much control I need. App Service is my default for a standard web API — I just deploy the code. Functions for event-driven work that scales to zero. Container Apps when I want containers without running a cluster. And AKS when I genuinely need full Kubernetes.",
+"On data, Azure SQL is managed SQL Server, so my EF Core code doesn't change. Cosmos DB is the globally distributed NoSQL option with tunable consistency. Blob storage for files, with hot, cool and archive tiers. And Redis cache for sessions and hot data.",
+"For messaging I map it to the pattern. Service Bus is the enterprise broker with queues and topics — the Azure RabbitMQ, for reliable work. Event Hubs is high-throughput streaming that's replayable — the Azure Kafka. And Event Grid is lightweight event routing for reactive notifications.",
+"The secrets answer is I never put them in appsettings or source control. I keep them in Key Vault, and I give the app a Managed Identity so it authenticates to Key Vault and to SQL with no stored credentials at all — nothing to leak or rotate. That's the modern default over connection strings.",
+"For operations, Application Insights gives me request, dependency and exception telemetry with distributed tracing, so I can trace a slow request end to end instead of guessing. Scaling I think of as out rather than up — more instances behind a load balancer, which needs stateless apps. And I define infrastructure as code with Bicep and use deployment slots for zero-downtime releases.",
+"I'll be honest that my heaviest Azure was a few years back, and I'm certified AZ-204 and AZ-900. But the service concepts — App Service, Functions, Key Vault, the messaging options, Managed Identity — are current and durable. What I'd need is a refresh on the portal and SDK specifics, not a relearn of the architecture."
+    ],
+    design: [
+"Both decouple services but on different models. RabbitMQ is a traditional queue — a message is delivered, acknowledged, and it's gone; great for work queues like process this payment. Kafka is an append-only log — messages are retained and replayable, and each consumer tracks its own offset; great for high-throughput event streams. My rule is 'do this task' goes to Rabbit, 'this happened and others may care' goes to Kafka.",
+"Most brokers guarantee at-least-once delivery, which means a consumer will sometimes see the same message twice — from a retry or a redeploy. So the consumer has to be idempotent: processing it twice has to equal processing it once. The way I do that is a stable unique key, a check against a dedup record, and the check-and-write done atomically in a transaction. That's exactly the duplicate-issuance fix I shipped.",
+"I cache data that's hot, expensive to compute, and doesn't change often, usually in Redis. The hard part is always invalidation. The pattern I use is cache-aside — check the cache, and on a miss load from the database and populate the cache with a time-to-live.",
+"For resilience I lean on a few patterns: rate limiting to protect a service from overload, retries with backoff and jitter, a circuit breaker so I stop hammering a failing dependency, timeouts, and idempotency so those retries are safe. In .NET that's usually Polly.",
+"A monolith is simpler to build, deploy and debug, and it scales as one unit. Microservices give you independent deployment and team autonomy, but you pay for it with real distributed-systems cost — the network, consistency, observability. So I don't reach for microservices before the complexity actually justifies it.",
+"If I were designing a payment and issuance flow, the callback from the gateway comes at least once, so I verify the callback signature, put an idempotency guard at the entry point that atomically claims the payment, issue exactly once, then reconcile the status and have retry and recovery for failures. The whole thing has to hold up under duplicate callbacks and a redirect-versus-webhook race — which is the real problem I solved at Senang."
+    ],
+    exp: [
+"For experience questions I use STAR — situation, task, action, result. I keep the situation and task short, spend most of the time on what I personally did, and always land a concrete result. I keep two or three stories ready that I can flex to different questions.",
+"My go-to story is a duplicate policy-issuance bug. Issuance fired automatically on payment, and it could be triggered from two places — the gateway callback and the redirect — and under certain timing both fired, so a few customers got a policy twice. The root cause was a read-then-write race with nothing atomic in between. I fixed it with an idempotency guard at the entry point: an atomic status transition, so the first flow to claim it wins and the second becomes a no-op. That eliminated the duplicates completely, and the lesson I carry is that for anything money-related you make the critical step idempotent and atomic — you never rely on a read-then-write check.",
+"On leadership, I led a cross-functional team of nine — developers, business analysts, QA and DevOps — and I mentored three junior developers directly. I frame it as lifting the team: I coached them on writing safe, idempotent code and reviewing for edge cases, not just shipping my own work.",
+"On why I'm coming back to .NET — I'll be honest that my heaviest hands-on .NET was 2018 to 2023 and lately I've been in Angular and Node. But the fundamentals never left; I use OOP, SOLID, async and DI every day in TypeScript, so it's a refresh, not a relearn. And it's deliberate — the strongly-typed, transactional backend work is what I do best and what I want to go deep in again.",
+"When I can, I reach for concrete numbers: a team of nine, three juniors mentored, payments across FPX, QR and card through PayNet, the Touch-and-Go e-wallet mini program, and issuance made safe under retries. Concrete beats vague every time."
+    ]
+  };
+
+  /* ════════════════════════════════════════════════════════
      STATE + PERSISTENCE
      ════════════════════════════════════════════════════════ */
   var KEY = "csharp-drill-v2";
@@ -1037,9 +1141,9 @@
     var items = [];
     cats.forEach(function (c) {
       if (!NOTES[c]) return;
-      NOTES[c].split(/\n(?=## )/).forEach(function (sec) {
+      NOTES[c].split(/\n(?=## )/).forEach(function (sec, i) {
         sec = sec.trim();
-        if (sec) items.push({ cat: c, body: sec });
+        if (sec) items.push({ cat: c, body: sec, say: (SAY[c] && SAY[c][i]) || null });
       });
     });
     notesDeck = items;
@@ -1157,6 +1261,11 @@
         '<span class="note-count">' + (noteIdx + 1) + ' / ' + notesDeck.length + '</span>' +
       '</div>' +
       '<div class="prose notes-doc">' + md(it.body) + '</div>' +
+      (it.say
+        ? '<div class="say-box"><div class="say-lbl">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path stroke-linecap="round" stroke-linejoin="round" d="M12 3v10m0 0a3 3 0 0 0 3-3V6a3 3 0 0 0-6 0v4a3 3 0 0 0 3 3Zm-6-2a6 6 0 0 0 12 0M12 18v3"/></svg>' +
+            'Say it out loud</div><p>' + inline(it.say) + '</p></div>'
+        : '') +
       '<div class="grow"></div>' +
       '<div class="controls"><div class="note-nav">' +
         '<button class="btn nav-prev" id="note-prev"' + (noteIdx === 0 ? ' disabled' : '') + '>&larr; Prev</button>' +
