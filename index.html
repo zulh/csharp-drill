@@ -235,6 +235,21 @@
   .prose ul.sub { margin: 7px 0 7px; padding-left: 1.1em; list-style: none; }
   .prose ul.sub > li { margin: 0 0 5px; color: var(--muted); font-size: .93em; position: relative; }
   .prose ul.sub > li::before { content: "\2013"; position: absolute; left: -1em; color: var(--faint); }
+  .prose .note-h { text-wrap: balance; }
+  .prose .note-h2 {
+    font-family: var(--mono); font-size: 14px; letter-spacing: .01em; font-weight: 700;
+    color: var(--accent-strong); margin: 26px 0 12px; padding-bottom: 7px; border-bottom: 1px solid var(--line);
+  }
+  .prose .note-h3 {
+    font-family: var(--sans); font-size: 12px; text-transform: uppercase; letter-spacing: .09em;
+    font-weight: 600; color: var(--muted); margin: 18px 0 7px;
+  }
+  .notes-doc > .note-h2:first-child { margin-top: 0; }
+  .notes-doc { font-size: 15.5px; }
+  .notes-doc p { margin: 0 0 11px; }
+  .note-block + .note-block { margin-top: 34px; padding-top: 28px; border-top: 2px solid var(--line); }
+  .stats-group { display: contents; }
+  .stats-note { color: var(--muted); }
 
   /* ── Controls ───────────────────────────────────────── */
   .controls { margin-top: 26px; }
@@ -336,6 +351,7 @@
     <span class="wordmark">csharp<span class="dot">.</span>drill<span class="cur">_</span></span>
     <span class="spacer"></span>
     <div class="seg" role="group" aria-label="Study mode">
+      <button id="mode-notes" aria-pressed="false">Notes</button>
       <button id="mode-recall" aria-pressed="true">Recall</button>
       <button id="mode-quiz" aria-pressed="false">Quiz</button>
     </div>
@@ -344,10 +360,13 @@
   </div>
   <div class="strip">
     <div class="strip-inner">
-      <span class="stat"><b id="s-mastered">0</b><span class="u"> / <span id="s-total">0</span> mastered</span></span>
-      <span class="stat">deck <b id="s-pos">0</b><span class="u">/<span id="s-deck">0</span></span></span>
-      <div class="track" aria-hidden="true"><i id="bar"></i></div>
-      <span class="stat">streak <b id="s-streak">0</b></span>
+      <span id="stats-progress" class="stats-group">
+        <span class="stat"><b id="s-mastered">0</b><span class="u"> / <span id="s-total">0</span> mastered</span></span>
+        <span class="stat">deck <b id="s-pos">0</b><span class="u">/<span id="s-deck">0</span></span></span>
+        <div class="track" aria-hidden="true"><i id="bar"></i></div>
+        <span class="stat">streak <b id="s-streak">0</b></span>
+      </span>
+      <span id="stats-notes" class="stats-note" style="display:none"></span>
     </div>
   </div>
 </header>
@@ -896,6 +915,45 @@
   ];
 
   /* ════════════════════════════════════════════════════════
+     NOTES  — long-form study notes, read before Recall/Quiz.
+     Markup: ## section, ### sub-head, - bullets, `code`, ```block```
+     ════════════════════════════════════════════════════════ */
+  var NOTES = {
+    behav:
+"## How to approach behavioural rounds\n\nBehavioural questions test *how you work* and whether you're a safe, honest hire — they're not trick questions. Two frameworks cover almost everything:\n\n- **STAR** (Situation → Task → Action → Result) for 'tell me about a time…'. Keep Situation/Task short, spend most of your time on **Action** in the first person, and always land a concrete **Result**.\n- **Now → Past → Why here** for 'tell me about yourself': current role, the background that built you, then why *this* role. Aim for ~90 seconds and end on the role, not yourself.\n\n## Principles that carry every answer\n\n- **Never bad-mouth** a current or past employer — frame every move as *toward* something, not away from it.\n- **Be honest about weaknesses** — a real one plus what you're actively doing about it beats a humble-brag every time.\n- **Structure over spontaneity** — rehearse the *beats*, then speak naturally; perfect wording matters less than hitting the beats.\n- **Always have questions to ask** — asking good ones is itself a strong signal you're evaluating them too.\n- **Anchor claims in specifics** — the team of 9, the 3 juniors, the idempotency fix. Concrete beats generic.\n\n## What the cards in this category give you\n\nThe key beats for: tell me about yourself, why leaving, why this role, strengths, weaknesses, leadership, conflict, failure, five-year plan, why-hire-you, salary, questions to ask, and handling pressure. Read them here for the *why*, then switch to **Recall** and rehearse each one out loud.\n\n## Salary — handle it deliberately\n\nDeflect politely if it comes early ('I'd like to understand the scope first'). If pushed, give a **researched range**, anchor on the value you deliver, and know your floor beforehand so you're never talked below it. For a recruiter's first screen, a range is expected — it saves everyone's time.",
+
+    lang:
+"## The type system\n\nC#'s types split into two families, and this one distinction explains a huge amount of behaviour.\n\n- **Value types** — `int`, `bool`, `enum`, `struct`, `DateTime`. They hold their data directly. Assigning or passing one **copies the whole value**, so the callee gets an independent copy.\n- **Reference types** — `class`, `string`, `array`, most things. The variable holds a **reference** to an object on the heap. Assigning or passing copies the *reference*, so two variables point at the **same object** — a mutation through one is visible through the other.\n\nThe interview test: *'if I pass it to a method and change it, does the caller see the change?'* Value = no, reference = yes.\n\n## class vs record vs struct\n\n- **class** — reference type, **identity equality** (equal only if the same instance). Your default for anything with behaviour or changing state.\n- **record** — reference type, but the compiler generates **value equality**, `with`-copies and a readable `ToString`. Ideal for immutable data and DTOs.\n- **struct** — value type, copied by value, no heap allocation. For small, short-lived values like a coordinate. Keep them small and ideally immutable.\n\nQuickest tell: two records with identical contents are equal; two classes are only equal if they're the same object.\n\n## Strings\n\n`string` is a **reference type but immutable** — every 'modification' creates a new string. That's why it behaves value-like, and why heavy concatenation in a loop should use `StringBuilder`, which mutates one buffer instead of allocating a new string each iteration.\n\n## var, nullable, const vs readonly\n\n- **var** — compile-time **type inference**, still fully static. `var x = 5` *is* `int x = 5`. Not `dynamic`, not JavaScript's `any`. Use it when the type is obvious on the line.\n- **Nullable reference types** — with the feature on, `string` is non-null and `string?` may be null; the compiler warns if you don't null-check. Catches a class of null-reference bugs at compile time.\n- **const** — compile-time constant, baked into callers, must be a literal. **readonly** — assigned once at runtime (typically in the constructor) and can differ per instance.\n\n## using / IDisposable\n\nA `using` block or declaration guarantees `Dispose()` runs on scope exit **even on exception** — deterministic cleanup for DB connections, files and streams. It's the try/finally you don't have to write.\n\n## Pattern matching\n\nModern C# leans on `is` / `switch` patterns — `if (x is Vehicle v)`, or a `switch` expression with `> 100 => …`. Cleaner than manual casts and null checks, and the compiler can check exhaustiveness.",
+
+    oop:
+"## The four pillars\n\n- **Encapsulation** — bundle data with the methods that guard it and hide internals behind a public surface (a property, not a public field), so callers can't put the object in an invalid state and you can add validation later without breaking them.\n- **Abstraction** — expose *what* something does, hide *how*. This is what lets you swap an implementation without touching callers.\n- **Inheritance** — a subclass reuses and extends a base. Useful, but favour **composition** — deep inheritance trees get brittle.\n- **Polymorphism** — one interface, many runtime implementations. It replaces `if`/`switch` chains with a virtual call, which is what makes code Open/Closed.\n\n## SOLID in depth\n\n### S — Single Responsibility\n\nOne reason to change; better framed as *answer to one actor*. If finance, the DBA and HR can each demand a change to the same class, that's three reasons — split it.\n\n### O — Open/Closed\n\nAdd behaviour by writing new code, not editing tested code. The mechanism is almost always **polymorphism replacing a conditional**: a new `IPaymentProcessor` implementation instead of another branch in a payment switch. You pick the axis you expect to vary and stay open on that one.\n\n### L — Liskov Substitution\n\nA subtype must be usable **anywhere** its base is, *behaviourally* — it can't demand more, promise less, throw what the base doesn't, or break invariants. The tell is calling code needing `if (x is SubType)`. Even .NET breaks it: an array is an `IList<T>` that throws on `Add`, which is why `IReadOnlyList<T>` exists.\n\n### I — Interface Segregation\n\nNo client should depend on methods it doesn't use. `NotImplementedException` in an implementation means the interface is too fat — split it (`IReadRepository` / `IWriteRepository`). It's SRP applied to interfaces.\n\n### D — Dependency Inversion\n\nHigh-level policy and low-level detail both depend on an **abstraction owned by the policy side**. `IOrderRepository` lives in the domain; `SqlOrderRepository` in infrastructure points up at it, and the domain doesn't know SQL exists. **DIP is not DI** — Dependency Injection is just a technique to achieve it; you can use a container and still violate DIP by injecting concrete types.\n\n## Interface vs abstract class\n\n- **Interface** — a pure contract, no implementation; a class implements as many as it likes. Use it to describe a **capability** (and it's trivial to mock in tests).\n- **Abstract class** — can carry shared implementation alongside abstract members, but you inherit only one. Use it when there's **genuinely shared code**.\n\n## The maturity note\n\nYou can over-apply SOLID: an interface with one implementation that will never have another is just indirection with extra files. Apply it on the axis you actually expect to vary.",
+
+    async:
+"## Threads, Tasks, and the pool\n\n- A **Thread** is a real OS thread — roughly a 1MB stack, expensive, and you manage its life.\n- A **Task** is a higher-level promise of future work that runs on the shared **thread pool**; the runtime schedules it. Almost always what you want.\n- ASP.NET Core serves each request on a pool thread, so requests genuinely run in parallel across cores.\n\n## What async/await actually does\n\n`await` on an **I/O** operation (a DB call, an HTTP request) **releases the thread back to the pool** while the I/O is in flight, then resumes your method when the result is ready. The compiler rewrites the method into a **state machine** to make the pause and resume work. `Task` is C#'s Promise; `await` is the pause point, which is why it feels natural coming from Node.\n\n## Throughput, not latency\n\nThis is the line interviewers want: async **improves throughput and scalability, not the speed of any single call.** A 200ms query still takes 200ms — you've just stopped parking a thread on it, so the same pool serves far more concurrent requests. Waiter analogy: taking other tables' orders while the kitchen cooks doesn't make the first meal arrive sooner; it serves more tables per hour.\n\n## async is not multithreading\n\nAsync is about **freeing a thread during a wait**. Multithreading is about **using multiple cores for parallel work**. .NET does both, but they're different: async shines for **I/O-bound** work, while genuine **CPU-bound** parallel work is `Task.Run` / parallelism.\n\n## The gotchas\n\n- **Never** call `.Result` or `.Wait()` on async code — it blocks the very thread you were trying to free and can **deadlock**. Async all the way down.\n- **`async void`** can't be awaited and swallows exceptions (which can crash the process). Only appropriate for event handlers; otherwise return `Task` / `Task<T>`.\n- Because .NET is truly multithreaded, **shared mutable state matters** — which is exactly why `DbContext` is registered **scoped**: it isn't thread-safe, so you never share one across concurrent requests.",
+
+    linq:
+"## IEnumerable vs IList vs IQueryable\n\n- **IEnumerable<T>** — the minimum contract: forward-only iteration over an in-memory sequence. LINQ over it runs in your process (**LINQ-to-Objects**). Analogy: a conveyor belt — you can't grab item five or know the count without walking it.\n- **IList<T>** — adds indexing (`list[3]`) and `Count`; a fully materialised in-memory collection. `List<T>` implements it. Analogy: a numbered shelf.\n- **IQueryable<T>** — holds an **expression tree**, not data: a *description* of a query that EF Core translates into **SQL** and runs in the database. Analogy: an order form for the kitchen — nothing's cooked until you send it.\n\nThe classic bug: keep it `IQueryable` so filtering happens in SQL. Call `ToList()` too early and you pull the whole table into memory, then filter in C#.\n\n## Deferred execution\n\nMost operators (`Where`, `Select`, `OrderBy`) are **lazy** — they build a pipeline and run only when you **enumerate** (`foreach`, `ToList`, `Count`, `First`). Two bites:\n\n- **Multiple enumeration** — iterate the same query twice and the work (and the DB round-trip) happens twice. Materialise once with `ToList()` if you'll reuse it.\n- **Captured variables** — the query reads a variable's value at *execution* time, not definition time, which surprises people in loops.\n\n## Collections and Big-O\n\n- **List<T>** — ordered; index access O(1), search by value O(n).\n- **Dictionary<K,V>** — hash lookup, average **O(1)** by key. Reach for it for lookups.\n- **HashSet<T>** — unique membership, O(1) `Contains`.\n- **Queue / Stack** — FIFO / LIFO.\n\nPick the collection by the operation you do most: lookups by key → Dictionary, membership → HashSet, order and iteration → List.",
+
+    data:
+"## What EF Core is\n\nThe **ORM** — it maps C# objects to database tables so you write LINQ instead of SQL. Each `DbSet<T>` maps to a table, and the LINQ you write against them becomes SQL.\n\n## DbContext — the heart of it\n\nThree roles: a **unit of work**, a **change tracker**, and the **identity map / gateway** to the database.\n\n- **Change tracking** — load an entity, mutate a property, call `SaveChanges()`; EF diffs against the snapshot it kept and generates the `UPDATE`. On `Add` + `SaveChanges` it issues one `INSERT` in a **transaction** and populates the generated Id.\n- **Lifetime is Scoped (per request)** — it's lightweight, **not thread-safe**, and short-lived. One per HTTP request means all services in that request share one unit-of-work and transaction. Singleton would be a threading disaster and a memory leak, since the tracker would grow forever.\n\n## Migrations (code-first)\n\nVersion your schema from the C# model: `dotnet ef migrations add X` then `dotnet ef database update`. The win — schema changes live in **source control**, are repeatable across environments, and flow through the same pipeline as code. No hand-editing production.\n\n## Loading strategies and N+1\n\n- **Eager** — `.Include(x => x.Owner)` pulls related data up front in one joined query.\n- **Lazy** — fetched on first access; convenient, but the classic cause of **N+1** (load 100 rows, then 100 more queries for each one's children = 101 round-trips).\n- **Explicit** — load on demand with an explicit call.\n- **Projection** — `.Select(...)` exactly what you need.\n\nCatch N+1 by turning on query logging and watching for a burst of identical parameterised queries. Use **`AsNoTracking()`** for read-only queries to skip change-tracking overhead.\n\n## DTO vs entity\n\nDon't leak the database shape to clients. DTOs prevent **over-posting** (a client setting fields it shouldn't) and let you expose only what the API needs — drop internal timestamps, never accept a client-supplied Id.\n\n## Raw SQL, safely\n\nWhen LINQ isn't the tool (a heavy report, an existing stored proc), drop to raw SQL and **always parameterise**: `FromSqlRaw(\"… WHERE Make = {0}\", make)` sends the value as a bound parameter, so injection input is treated as data, not code.",
+
+    sql:
+"## ACID and transactions\n\nA **transaction** groups statements into one atomic unit. **ACID** is its four guarantees:\n\n- **Atomicity** — all-or-nothing.\n- **Consistency** — constraints are never left violated.\n- **Isolation** — concurrent transactions don't corrupt each other (to the degree set below).\n- **Durability** — once committed, it survives a crash.\n\nReach for a transaction on any multi-step write that must stay consistent — payments, transfers, issuance.\n\n## Isolation levels and read phenomena\n\nHigher isolation means more correctness and less concurrency:\n\n- **Read Uncommitted** — allows **dirty reads** (seeing uncommitted data).\n- **Read Committed** — prevents dirty reads (the default in SQL Server and Postgres).\n- **Repeatable Read** — rows you've read won't change if you re-read them.\n- **Serializable** — as if transactions ran one at a time.\n\nThe three phenomena: **dirty read** (uncommitted), **non-repeatable read** (a row changed on re-read), **phantom read** (new rows match your `WHERE` on a re-run). Each level up removes one more.\n\n## Indexes\n\nA sorted structure (usually a B-tree) that finds rows without scanning the whole table.\n\n- **Clustered** — defines the physical row order; **one per table** (usually the primary key).\n- **Non-clustered** — a separate structure pointing back to the rows; you can have many.\n- **The trade-off** — fast reads but **slower writes** (every index is maintained on insert/update) and more storage. Index the columns you filter, join and sort on.\n\n## Joins and keys\n\n- **INNER** (matches in both), **LEFT** (all left rows + matches), **FULL** (both sides, nulls where no match). The anti-join *'rows with no match'* = `LEFT JOIN … WHERE right.Id IS NULL`.\n- **Primary key** (unique identity), **foreign key** (referential integrity), **unique constraint** (no duplicates — and a great **idempotency backstop**).\n\n## Normalization vs denormalization\n\nNormalize (1NF / 2NF / 3NF) to remove redundancy so each fact lives in one place and you avoid update anomalies. **Denormalize** deliberately — duplicating data to speed reads in reporting/analytics. It's integrity vs read-performance; choose by workload.\n\n## Concurrency and deadlocks\n\n- **Deadlock** — two transactions each hold a lock the other needs; the DB kills one as the victim. Avoid by accessing rows in a **consistent order**, keeping transactions short, and retrying the victim.\n- **Pessimistic locking** — lock on read (safe, low concurrency). **Optimistic** — a **version/rowversion** column checked at update time (`WHERE Version = @original`; zero rows affected means someone beat you). Optimistic suits rare conflicts, which is most web apps.\n\n## Optimising a slow query\n\nRead the **execution plan** first. Add or fix **indexes** on the WHERE / JOIN / ORDER BY columns, select only the columns you need (no `SELECT *`), avoid functions on indexed columns (`WHERE YEAR(date) = …` can't use the index), and watch for ORM N+1. Cache or denormalise only after the query itself is as tight as it can be.",
+
+    k8s:
+"## The model\n\nKubernetes is a **container orchestrator**: you declare **desired state**, and a control loop continuously makes actual state match it.\n\n- **Pod** — the smallest unit; one or more containers sharing a network identity. Disposable.\n- **Deployment** — declares N replicas of an image, replaces dead pods, and handles rolling updates and rollbacks.\n- **Service** — a stable name and virtual IP that load-balances across a changing set of healthy pods.\n- **Ingress** — HTTP routing into Services. **ConfigMap / Secret** — configuration and sensitive values injected into pods.\n\n## Probes\n\n- **Readiness** — 'can it take traffic?' Fail → pulled from Service endpoints (not restarted).\n- **Liveness** — 'is it wedged?' Fail → container **restarted**.\n- **Startup** — holds the other two off for slow-booting apps.\n\nTell: READY 0/1 → readiness; a climbing RESTARTS count → liveness or a crash.\n\n## The diagnostic reflex\n\n`kubectl get pods` (status and READY) → `kubectl describe pod` (Events: scheduling, image pull, secrets, probes) → `kubectl logs --previous` (the app's own crash). Rule of thumb: **container never started → describe; started then failed → logs.**\n\n## Failure states\n\n- **CrashLoopBackOff** — starts then dies repeatedly (bad config, missing env). Use `logs --previous`.\n- **ImagePullBackOff** — can't pull the image (wrong tag or registry auth). Check `describe` Events.\n- **Pending** — can't be scheduled (insufficient CPU/memory, or an unbound volume).\n- **OOMKilled** — hit the **memory** limit and was killed. (Exceeding the **CPU** limit only throttles.)\n- **502 with READY 0/1** — readiness failing → no endpoints → the ingress has nothing to route to. Confirm with `get endpoints` (empty).\n\n## Requests vs limits\n\n**Requests** are the guaranteed minimum the scheduler places the pod on. **Limits** are the hard ceiling — over memory → OOMKilled, over CPU → throttled.\n\n## Rollback and CI/CD\n\n- **Helm** — `helm history` to find the last good revision, `helm rollback` to restore it. In prod, prefer re-deploying the previous good tag through CI so the revert is tracked.\n- **Pipeline** — build (scan, compile, artifact) → dockerize (tag by SHA and branch, push) → deploy (`helm upgrade --install`). SHA tags give traceability and easy rollback targets; gate prod behind a version tag so a production deploy is always deliberate.",
+
+    azure:
+"## Compute — pick by control vs convenience\n\n- **App Service** — PaaS for web apps and APIs; deploy code and get scaling plus deployment slots. The default for a standard API.\n- **Azure Functions** — serverless and event-driven; pay-per-execution, scales to zero. Triggers (HTTP, queue, timer, blob) plus bindings.\n- **Container Apps** — serverless containers (managed Kubernetes underneath) with scale-to-zero.\n- **AKS** — managed Kubernetes; the most control and the most complexity.\n\n## Data and storage\n\n- **Azure SQL Database** — managed SQL Server (EF Core code unchanged); DTU vs vCore; a Serverless tier that auto-pauses; Elastic Pools.\n- **Cosmos DB** — globally distributed, multi-model NoSQL; five consistency levels (Strong → Eventual); RU/s throughput.\n- **Blob Storage** — object storage with hot / cool / archive tiers.\n- **Azure Cache for Redis** — in-memory cache for sessions and hot data.\n\n## Messaging\n\n- **Service Bus** — enterprise broker (queues + topics, dead-letter, ordering). The Azure equivalent of RabbitMQ.\n- **Event Hubs** — high-throughput, replayable event streaming. The Azure Kafka.\n- **Event Grid** — lightweight event routing / pub-sub for reactive notifications.\n\n## Security — the secrets answer\n\n- **Key Vault** — a central store for secrets, keys and certificates with access policies and audit logging.\n- **Managed Identity** — an Azure AD identity for your resource so it reaches Key Vault, SQL and Storage **with no stored credentials**. Grant it an RBAC role and the SDK gets tokens transparently — nothing to leak or rotate. This is the modern default over connection strings.\n\n## Ops\n\n- **Application Insights** — APM: requests, dependencies, exceptions, traces, distributed tracing, and KQL queries over the telemetry.\n- **Scaling** — up (a bigger instance) vs **out** (more instances behind a load balancer, the cloud way — needs stateless apps); **autoscale** on metrics or a schedule.\n- **IaC** — **Bicep** / ARM defines resources in version control; Azure DevOps or GitHub Actions pipelines deploy; App Service **slots** give blue-green releases.\n\n## The recency framing (say this honestly)\n\nCertified AZ-204 and AZ-900; your heaviest Azure was a few years back. The service *concepts* — App Service, Functions, Key Vault, the messaging trio, Managed Identity — are current and durable. What needs refreshing is portal and SDK specifics, not the architecture. Frame it as a refresh, not a relearn.",
+
+    design:
+"## Message brokers\n\nBoth decouple services, on different models:\n\n- **RabbitMQ** — a traditional broker/queue; a message is delivered and, once acknowledged, it's **gone**. Rich routing. For task and work queues ('process this payment').\n- **Kafka** — an append-only **log**; messages are **retained**, consumers track their own offsets, and it's **replayable**. For high-throughput event streaming, event sourcing and analytics.\n\nRule of thumb: *'do this task' → RabbitMQ; 'this happened, and others may care now or later' → Kafka.*\n\n## At-least-once plus idempotency (the big one)\n\nMost brokers guarantee **at-least-once** delivery — to avoid loss they redeliver anything unacked, so a consumer **will** see duplicates (retries, network blips, redeploys). Therefore the consumer **must be idempotent**: processing the same message twice equals processing it once.\n\nHow: give each message a **stable unique key**; before acting, check a **dedup table / unique constraint**; and do the **check-and-write atomically** in a transaction so two concurrent copies can't both slip through. This is exactly the duplicate-issuance fix — an atomic status transition, not check-then-act.\n\n## Caching\n\nCache hot, expensive-to-compute, rarely-changing data (Redis). The hard parts are **invalidation** and **stampedes**. Common pattern is cache-aside: check the cache, on a miss load from the DB and populate the cache with a TTL.\n\n## Rate limiting and resilience\n\n- **Rate limiting** — protect a service from overload (token bucket, fixed window).\n- **Retry with backoff and jitter**, a **circuit breaker** (stop hammering a failing dependency), **timeouts**, and **idempotency** so retries are safe. Polly is the .NET library for this.\n\n## Monolith vs microservices\n\nA **monolith** is simpler to build, deploy and debug and scales as one unit. **Microservices** give independent deploy/scale and team autonomy but bring real distributed-systems cost — network, consistency, observability. Don't reach for them before the complexity justifies it.\n\n## Designing a payment / issuance flow (your strength)\n\nA payment-gateway callback arrives (at-least-once) → **verify** the callback signature → apply an **idempotency guard** (an atomic claim on the payment id) → issue exactly once → **reconcile** status → **retry/recovery** for failures. The whole thing has to hold up under duplicate callbacks and a concurrent redirect-versus-webhook race.",
+
+    exp:
+"## The STAR framework\n\nStructure every experience answer as **Situation → Task → Action → Result**. Keep Situation and Task short (just context), spend most of your time on **Action** — what *you* did, in the first person — and always land a concrete **Result**. Have two or three stories ready that you can flex to different questions: a hard bug, a leadership moment, a conflict.\n\n## Your anchor story: duplicate policy issuance\n\n- **Situation** — on the insurance platform, issuance fired automatically on payment and could be triggered from two places: the async gateway **callback** and the sync **redirect**. Under certain timing both fired, and a few customers got a policy issued twice.\n- **Task** — issue exactly one policy per payment, lose no legitimate issuances, and hold up under at-least-once callbacks (the gateway can legitimately send the same success more than once).\n- **Action** — the root cause was a **read-then-write race**: both flows checked 'issued yet?', saw no, and issued, with nothing atomic between them and no unique constraint. The fix was an **idempotency guard** at the entry point — an **atomic status transition** so the first flow to claim it wins and the second becomes a no-op. I made the webhook handler idempotent too and tested it by firing the callback and redirect simultaneously.\n- **Result** — duplicate issuance was eliminated: one policy per payment even under retries or concurrent callbacks, and it cut the manual cancellations and support tickets. The lesson I now apply by default: for anything money- or issuance-related, make the critical step **idempotent and atomic** — never rely on read-then-write.\n\n## Talking about the team\n\nYou led a **cross-functional team of 9** (dev, BA, QA, DevOps) and mentored **3 junior developers** on production safety and code quality. Frame leadership as lifting the team — coaching on safe, idempotent code and edge-case review — not just shipping your own output.\n\n## The 'why .NET' narrative\n\nYour heaviest hands-on .NET was 2018–2023; recent work is Angular and Node. Two beats: the **fundamentals never left** (OOP, SOLID, async, DI applied daily in TypeScript — a refresh, not a relearn), and it's a **deliberate return** to the strongly-typed, transactional backend work you do best. This isn't a fallback; it's the direction you chose.\n\n## Metrics worth mentioning\n\nA team of 9; 3 juniors mentored; payments across FPX, QR and card via PayNet; the TNG eWallet Mini Program; issuance made safe under retries. Concrete beats vague — reach for the numbers."
+  };
+
+  /* ════════════════════════════════════════════════════════
      STATE + PERSISTENCE
      ════════════════════════════════════════════════════════ */
   var KEY = "csharp-drill-v2";
@@ -924,8 +982,11 @@
     card: document.getElementById("card"),
     cat: document.getElementById("cat"),
     theme: document.getElementById("theme"),
+    modeNotes: document.getElementById("mode-notes"),
     modeRecall: document.getElementById("mode-recall"),
     modeQuiz: document.getElementById("mode-quiz"),
+    statsProgress: document.getElementById("stats-progress"),
+    statsNotes: document.getElementById("stats-notes"),
     mastered: document.getElementById("s-mastered"),
     total: document.getElementById("s-total"),
     pos: document.getElementById("s-pos"),
@@ -984,6 +1045,13 @@
         for (var b = 0; b < blocks.length; b++) {
           var block = blocks[b].replace(/^\n+|\n+$/g, "");
           if (!block) continue;
+          var hm = block.match(/^(#{1,4})\s+(.+)$/);
+          if (hm && block.indexOf("\n") === -1) {
+            var lvl = hm[1].length;
+            var tag = lvl <= 2 ? "h4" : "h5";
+            out += "<" + tag + ' class="note-h note-h' + lvl + '">' + inline(hm[2]) + "</" + tag + ">";
+            continue;
+          }
           var first = block.split("\n")[0].replace(/^\s+/, "");
           if (/^[-•]\s/.test(first)) out += renderList(block);
           else out += "<p>" + inline(block.trim()).replace(/\n/g, "<br>") + "</p>";
@@ -1026,6 +1094,8 @@
   function render() {
     revealed = false; answered = false;
 
+    if (state.mode === "notes") return renderNotes();
+
     if (!deck.length) {
       el.card.innerHTML =
         '<div class="card-top"><span class="chip">empty</span></div>' +
@@ -1042,6 +1112,24 @@
     if (state.mode === "quiz") renderQuiz(q, p);
     else renderRecall(q, p);
     updateStats();
+  }
+
+  function renderNotes() {
+    var cats = state.cat === "all" ? Object.keys(CATS) : [state.cat];
+    var html = "";
+    cats.forEach(function (c) {
+      if (!NOTES[c]) return;
+      html += '<div class="note-block">' +
+                '<div class="card-top"><span class="chip">' + CATS[c] + '</span></div>' +
+                '<div class="prose notes-doc">' + md(NOTES[c]) + '</div>' +
+              '</div>';
+    });
+    if (!html) html = '<p class="prompt">Notes for this section are coming soon.</p>';
+    el.card.innerHTML = html;
+    el.statsNotes.textContent = (state.cat === "all"
+        ? "Read through — then switch to Recall to test yourself"
+        : "Reading: " + CATS[state.cat] + " — then switch to Recall");
+    window.scrollTo({ top: 0, behavior: prefersMotion() ? "smooth" : "auto" });
   }
 
   function renderRecall(q, p) {
@@ -1171,13 +1259,23 @@
     el.cat.value = state.cat;
   }
 
-  function setMode(m) {
-    state.mode = m; save();
+  var MODES = ["notes", "recall", "quiz"];
+  function applyModeChrome(m) {
+    el.modeNotes.setAttribute("aria-pressed", m === "notes");
     el.modeRecall.setAttribute("aria-pressed", m === "recall");
     el.modeQuiz.setAttribute("aria-pressed", m === "quiz");
+    var notes = m === "notes";
+    el.statsProgress.style.display = notes ? "none" : "contents";
+    el.statsNotes.style.display = notes ? "" : "none";
+  }
+  function setMode(m) {
+    state.mode = m; save();
+    applyModeChrome(m);
     buildDeck(); render();
   }
+  function cycleMode() { setMode(MODES[(MODES.indexOf(state.mode) + 1) % MODES.length]); }
 
+  el.modeNotes.onclick = function () { setMode("notes"); };
   el.modeRecall.onclick = function () { setMode("recall"); };
   el.modeQuiz.onclick = function () { setMode("quiz"); };
   el.cat.onchange = function () { state.cat = el.cat.value; save(); buildDeck(); render(); };
@@ -1207,13 +1305,15 @@
 
   /* ── Keyboard ──────────────────────────────────────── */
   el.fkeys.innerHTML =
-    '<kbd>space</kbd> reveal / next &nbsp;·&nbsp; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> grade &nbsp;·&nbsp; <kbd>m</kbd> mode';
+    '<kbd>space</kbd> reveal / next &nbsp;·&nbsp; <kbd>1</kbd><kbd>2</kbd><kbd>3</kbd> grade &nbsp;·&nbsp; <kbd>m</kbd> switch mode';
 
   document.addEventListener("keydown", function (e) {
     if (e.target.tagName === "SELECT" || e.metaKey || e.ctrlKey || e.altKey) return;
     var k = e.key.toLowerCase();
 
-    if (k === "m") { setMode(state.mode === "quiz" ? "recall" : "quiz"); e.preventDefault(); return; }
+    if (k === "m") { cycleMode(); e.preventDefault(); return; }
+
+    if (state.mode === "notes") return;   // let the page scroll freely
 
     if (state.mode === "recall") {
       if ((k === " " || k === "enter") && !revealed) { e.preventDefault(); if (el.reveal) el.reveal(); return; }
@@ -1237,8 +1337,7 @@
 
   /* ── Boot ──────────────────────────────────────────── */
   buildCatOptions();
-  el.modeRecall.setAttribute("aria-pressed", state.mode === "recall");
-  el.modeQuiz.setAttribute("aria-pressed", state.mode === "quiz");
+  applyModeChrome(state.mode);
   applyTheme();
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { if (!state.theme) applyTheme(); });
   buildDeck();
