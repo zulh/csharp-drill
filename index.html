@@ -468,6 +468,14 @@
       prompt:"AddScoped vs AddSingleton vs AddTransient — and why is Scoped different from Transient?",
       a:"They're the three DI **lifetimes** — how long the container keeps one instance:\n\n**Singleton** — one instance for the whole app. Good for stateless/shared things (a clock, config, a cache). Must be thread-safe.\n\n**Scoped** — one instance **per scope**, which in ASP.NET Core means **per HTTP request**. Everything in that one request shares it; the next request gets a fresh one. This is where `DbContext` lives.\n\n**Transient** — a **new instance every time** it's asked for, even twice within the same request. For cheap, stateless helpers.\n\n**Scoped vs Transient:** within a single request, Scoped hands out the *same* object to every dependency that needs it; Transient hands out a *new* one each time. That's why a Scoped `DbContext` lets several services share one unit-of-work and transaction — Transient would give each its own." },
 
+    { id:"r-composition", cat:"oop",
+      prompt:"Composition over inheritance — what does it mean and why favour it?",
+      a:"**Inheritance is 'is-a'; composition is 'has-a'.**\n\n- **Inheritance** — a subclass *is a* kind of its base and inherits its behaviour (`SavingsAccount : Account`).\n- **Composition** — a class *has* other objects and delegates to them, assembling behaviour from swappable parts.\n\n**Why favour composition:**\n- With inheritance you get **everything** from the base, including what you don't want, and you're welded to it (fragile base class; change the parent, break the children).\n- Inheritance is fixed at compile time and C# allows only **one** base class; composed parts are swappable at runtime and you can combine many.\n- It avoids the **combinatorial explosion** — instead of `FlyingSwordChar`, `WalkingBowChar`… a `Character` just *has-a* `IMovement` and `IWeapon`.\n\n**The insight to say out loud:** *composition in practice is just **dependency injection** — my services are given injected interfaces rather than inheriting a base class, which is why they're easy to swap and mock.*\n\nDon't over-swing: keep inheritance for a **true is-a** with stable shared behaviour (a framework base class). *Favour* composition, don't ban inheritance." },
+
+    { id:"r-virtual", cat:"oop",
+      prompt:"virtual, override, abstract, sealed, new — what does each keyword do?",
+      a:"These are the mechanism **behind polymorphism** — how the runtime picks the right implementation.\n\n- **`virtual`** — marks a base method as *overridable*. Without it a method can't be replaced. **In C# methods are non-virtual by default** (opposite of Java — a classic gotcha).\n- **`override`** — the subclass replaces the virtual method; the runtime calls the overridden version **even through a base reference**. Use `base.Method()` to reuse the parent's logic.\n- **`abstract`** — a method with **no body** that subclasses *must* implement; its class must also be `abstract` and **can't be instantiated**. (`virtual` = optional default; `abstract` = no default, must supply one.)\n- **`sealed`** — the opposite of virtual: stops further inheriting/overriding.\n- **`new` (method hiding)** — *hides* rather than overrides; dispatch then follows the **reference type**, not the runtime object. Almost always a mistake.\n\n```csharp\nBase a = new Over();  a.Go();  // override → \"Over\" (runtime type wins)\nBase b = new Hide();  b.Go();  // new/hiding → \"Base\" (reference type wins)\n```\n\nOne-liner: *base declares `virtual`/`abstract`, subclass `override`s, runtime dispatches to the real object's version — that's polymorphism under the hood.*" },
+
     { id:"r-async", cat:"async",
       prompt:"What does async/await actually do — and what does it NOT do?",
       a:"`await` on an I/O operation (a DB call, an HTTP request) **releases the current thread back to the thread pool** while the I/O is in flight, then resumes your method when the result is ready. The compiler rewrites the method into a state machine to make that pause/resume work.\n\nWhat it buys you: **throughput / scalability**. That thread can go serve other requests instead of blocking. A server handling 1000 concurrent requests doesn't need 1000 threads parked on the DB.\n\n**What it does NOT do:** make any single call faster. An `await`ed query that takes 200ms still takes 200ms — you haven't sped it up, you've just stopped wasting a thread while you wait. Async is about *doing more at once*, not *doing one thing quicker*.\n\nGotcha to name: never `.Result`/`.Wait()` on async code — it blocks the thread you were trying to free, and can deadlock." },
@@ -792,6 +800,26 @@
       prompt:"An implementation is full of `throw new NotImplementedException()`. Which SOLID smell is that?",
       choices:[["Open/Closed",0],["Interface Segregation — the interface is too fat",1],["Liskov",0],["Single Responsibility",0]],
       e:"**Interface Segregation.** Clients are forced to implement methods they don't use. Split the fat interface (e.g. `IReadRepository` / `IWriteRepository`) so each client depends only on what it calls. ISP is SRP for interfaces." },
+
+    { id:"q-virtual-default", cat:"oop",
+      prompt:"In C#, are methods overridable (virtual) by default?",
+      choices:[["Yes, like Java",0],["No — you must mark them `virtual`",1],["Only in abstract classes",0],["Only public methods are",0]],
+      e:"**No.** C# methods are non-virtual by default; you opt in with `virtual` (or `abstract`). This is the opposite of Java, where methods are virtual by default — a common 'do you really know C#' question." },
+
+    { id:"q-override-new", cat:"oop",
+      prompt:"`Base b = new Hide();` where Hide uses `new` (not `override`) to hide `Go()`. What does `b.Go()` call?",
+      choices:[["Hide's version",0],["Base's version — hiding follows the reference type",1],["Compile error",0],["Both",0]],
+      e:"**Base's version.** `new` *hides* rather than overrides, so dispatch follows the **reference type** (`Base`), not the runtime object. With `override` it would call Hide's version (runtime type wins). Prefer `override`; `new` is usually a bug." },
+
+    { id:"q-abstract-virtual", cat:"oop",
+      prompt:"Difference between an `abstract` method and a `virtual` method?",
+      choices:[["No difference",0],["abstract has no body and MUST be overridden; virtual has a default you MAY override",1],["virtual can't be overridden",0],["abstract methods are static",0]],
+      e:"**abstract = no implementation, must be overridden** (and its class can't be instantiated); **virtual = a default implementation you may override.** Both enable polymorphism." },
+
+    { id:"q-composition", cat:"oop",
+      prompt:"Composition models which relationship, and how does it usually show up in C#?",
+      choices:[["'is-a', via inheritance",0],["'has-a', via injected/held objects (dependency injection)",1],["'uses-a', via static calls",0],["It's the same as inheritance",0]],
+      e:"**'has-a'** — a class holds other objects and delegates to them, which in practice is **dependency injection**. Inheritance models 'is-a'. Favour composition for swappable, mockable, mix-and-match behaviour." },
 
     { id:"q-defer", cat:"linq",
       prompt:"You store a LINQ query in a variable and `foreach` over it twice. What happens?",
