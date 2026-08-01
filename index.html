@@ -444,6 +444,7 @@
     async: "Async & Threading",
     linq:  "LINQ & Collections",
     data:  "EF Core & ORM",
+    aspnet:"ASP.NET Core & Web API",
     sql:   "SQL & Databases",
     k8s:   "Kubernetes & DevOps",
     azure: "Azure & Cloud",
@@ -519,6 +520,26 @@
     { id:"f-middleware", cat:"finago",
       prompt:"What is middleware in Express?",
       a:"Middleware is a function that runs in between receiving a request and sending the response. It gets the request and response objects and a `next` function, and it can either do something and pass control on by calling `next`, or stop the request and respond itself.\n\nI used middleware for the partner API: one for authentication that checks the API key and either attaches the partner or rejects with a `401`, and one for rate limiting that checks the token bucket and either allows the request or returns a `429`.\n\nSo middleware is great for cross-cutting concerns like auth, logging, and rate limiting, because it runs before your actual route handler, in one place, instead of repeating it in every route." },
+
+    { id:"asp-actionresult", cat:"aspnet",
+      prompt:"ActionResult, IActionResult, ActionResult<T> — what are they and why return them?",
+      a:"They're the objects an MVC / Web API action returns to describe the HTTP response. Everything derives from the abstract **`ActionResult`**, which implements the **`IActionResult`** interface.\n\n- **`IActionResult`** — the interface. Use it as your return type when one action can return **different** results (a view in one branch, a 404 in another).\n- **`ActionResult`** — the abstract base class implementing it.\n- **`ActionResult<T>`** — Web API generic: return **either** a value **or** an action result, with better typing. `public ActionResult<Booking> Get(int id)` can `return booking;` or `return NotFound();`.\n\nYou rarely `new` these up — the `Controller` base class gives helper methods (`View()`, `Json()`, `Ok()`, `NotFound()`, `CreatedAtAction()`) that build them for you. The point of the abstraction: the framework runs whatever result you hand back, so one method can flexibly return HTML, JSON, a redirect, or a status code." },
+
+    { id:"asp-viewresults", cat:"aspnet",
+      prompt:"View-rendering results — ViewResult, PartialViewResult, ViewComponentResult?",
+      a:"These render HTML from Razor (server-rendered MVC, not Web APIs).\n\n- **`ViewResult`** — `View(model)` renders a full Razor view to HTML.\n- **`PartialViewResult`** — `PartialView()` renders just a fragment, e.g. for an AJAX update.\n- **`ViewComponentResult`** — `ViewComponent()` renders a reusable widget with its own logic (a mini-controller for a cart summary, nav menu, etc.).\n\n```csharp\npublic IActionResult Details(int id) => View(model);\n```\n\nAll three come from `Controller` base-class helpers." },
+
+    { id:"asp-apiresults", cat:"aspnet",
+      prompt:"Web API action results that map to HTTP status codes — the common ones?",
+      a:"The bread-and-butter for APIs; each maps to a status code:\n\n- **`Ok(obj)`** → `OkObjectResult`, **200** with a body.\n- **`CreatedAtAction(...)`** → **201** plus a `Location` header (return after a successful create).\n- **`NoContent()`** → **204**, success with no body.\n- **`BadRequest(obj)`** → **400**, e.g. `return BadRequest(ModelState);`.\n- **`NotFound()`** → **404**.\n- **`Unauthorized()`** → **401**, **`Forbid()`** → **403**.\n- **`Conflict(obj)`** → **409** (the double-booking case).\n- **`StatusCode(429, obj)`** → any code you want.\n- **`Json(obj)`** → `JsonResult`; **`Content(text)`** → raw string.\n\n```csharp\n[HttpPost]\npublic IActionResult Create(BookingDto dto)\n{\n    if (!ModelState.IsValid) return BadRequest(ModelState); // 400\n    if (RoomTaken(dto))      return Conflict(\"Room taken\");  // 409\n    var b = _service.Book(dto);\n    return CreatedAtAction(nameof(Get), new { id = b.Id }, b); // 201\n}\n```\n\nThe `*ObjectResult` variants (`OkObjectResult`, `NotFoundObjectResult`) are just the with-a-body versions of the plain ones." },
+
+    { id:"asp-redirectfile", cat:"aspnet",
+      prompt:"Redirect and file action results in ASP.NET Core?",
+      a:"**Redirects:**\n- **`Redirect(url)`** → `RedirectResult`, 302 to a raw URL.\n- **`RedirectToAction(\"Index\")`** → redirect to another action.\n- **`RedirectToRoute(...)`** → redirect by named route.\n- **`LocalRedirect(\"/home\")`** → redirect only within your own site; blocks open-redirect attacks (won't send users to an external URL).\n\n**Files:**\n- **`File(bytes, contentType)`** → `FileContentResult`, send a `byte[]`.\n- **`File(stream, contentType)`** → `FileStreamResult`, stream it.\n- **`PhysicalFile(path, type)`** → send from an absolute disk path.\n- **`File(\"~/x\", type)`** → `VirtualFileResult`, send from a wwwroot / virtual path.\n\nUse `LocalRedirect` over `Redirect` for any user-supplied return URL — it's the safe default." },
+
+    { id:"asp-iactionresult-vs-t", cat:"aspnet",
+      prompt:"IActionResult vs ActionResult<T> — which should a Web API action return? (common follow-up)",
+      a:"Both let an action return different responses; the difference is **typing**.\n\n**`IActionResult`** — you return only action results (`Ok(obj)`, `NotFound()`). The success payload type isn't visible in the signature, so Swagger/OpenAPI can't infer it without an extra `[ProducesResponseType]` attribute.\n\n**`ActionResult<T>`** — you can return **either** a `T` **directly** or an action result, and the success type `T` is right there in the signature. Cleaner, self-documenting, and tooling picks up the response shape automatically.\n\n```csharp\npublic ActionResult<Booking> Get(int id)\n{\n    var b = _repo.Find(id);\n    if (b is null) return NotFound(); // 404\n    return b;                         // implicitly 200 + JSON\n}\n```\n\nRule of thumb: **prefer `ActionResult<T>` for Web API** actions that return data; use plain `IActionResult` when there's no single payload type (only status codes)." },
 
     { id:"r-valref", cat:"lang",
       prompt:"Value types vs reference types — what's the real difference, and why does it matter?",
