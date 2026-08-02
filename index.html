@@ -437,7 +437,7 @@
      ════════════════════════════════════════════════════════ */
 
   var CATS = {
-    finago: "Finago Case (Hotel Booking)",
+    finago: "Hotel Booking Case",
     behav: "Behavioral & Fit",
     lang:  "C# Language",
     oop:   "OOP & SOLID",
@@ -601,7 +601,7 @@
 
     { id:"test-types", cat:"test",
       prompt:"Testing: unit vs integration vs e2e, and how do you write tests in .NET?",
-      a:"**The test pyramid** — many fast unit tests at the base, fewer integration tests, a few slow end-to-end tests at the top.\n- **Unit test** — one class/method in **isolation**, dependencies mocked. Fast, pinpoints the failure.\n- **Integration test** — several parts together **for real** (e.g. a service hitting a real or in-memory database); catches wiring issues units miss.\n- **End-to-end** — the whole system through the UI/API as a user would. Highest confidence, slowest, most brittle.\n\n**In .NET** you use **xUnit** (or NUnit/MSTest). A test is Arrange-Act-Assert:\n\n```csharp\n[Fact]\npublic void Overlap_SameDates_IsDetected() {\n    var svc = new BookingService(...);   // Arrange\n    var clash = svc.HasOverlap(a, b);     // Act\n    Assert.True(clash);                   // Assert\n}\n```\n\n`[Theory]` + `[InlineData]` runs the same test over many inputs. **TDD** is the discipline of writing the failing test first, then the code, then refactoring. Good speaking point: in my Finago case I'd unit-test the overlap logic and add a concurrency integration test in CI." },
+      a:"**The test pyramid** — many fast unit tests at the base, fewer integration tests, a few slow end-to-end tests at the top.\n- **Unit test** — one class/method in **isolation**, dependencies mocked. Fast, pinpoints the failure.\n- **Integration test** — several parts together **for real** (e.g. a service hitting a real or in-memory database); catches wiring issues units miss.\n- **End-to-end** — the whole system through the UI/API as a user would. Highest confidence, slowest, most brittle.\n\n**In .NET** you use **xUnit** (or NUnit/MSTest). A test is Arrange-Act-Assert:\n\n```csharp\n[Fact]\npublic void Overlap_SameDates_IsDetected() {\n    var svc = new BookingService(...);   // Arrange\n    var clash = svc.HasOverlap(a, b);     // Act\n    Assert.True(clash);                   // Assert\n}\n```\n\n`[Theory]` + `[InlineData]` runs the same test over many inputs. **TDD** is the discipline of writing the failing test first, then the code, then refactoring. Good speaking point: in my hotel booking case I'd unit-test the overlap logic and add a concurrency integration test in CI." },
 
     { id:"test-mocking", cat:"test",
       prompt:"Mocking and testable code — what is a mock and why does DI matter for testing?",
@@ -625,7 +625,7 @@
 
     { id:"async-threadsafe", cat:"async",
       prompt:"Thread safety — lock, Interlocked, and concurrent collections?",
-      a:"When multiple threads touch shared mutable state, you get **race conditions** — the same core problem as my Finago double-booking, just in-process. Tools, cheapest first:\n\n- **`lock`** — the everyday mutex; only one thread at a time in the block:\n  ```csharp\n  lock (_gate) { _balance += amount; }\n  ```\n  Lock on a private `readonly object`, never on `this` or a public object. Keep the critical section tiny.\n- **`Interlocked`** — lock-free atomic operations for simple counters: `Interlocked.Increment(ref _count)`. Faster than a lock for a single operation.\n- **Concurrent collections** — `ConcurrentDictionary`, `ConcurrentQueue`, etc. are built to be used safely from many threads without your own locking.\n- **`SemaphoreSlim`** — like a lock but supports **async** (`await sem.WaitAsync()`), since you can't `await` inside a `lock`.\n\nInterview link: my in-app mutex was the single-instance version of this; across servers you'd push the guarantee into the database. Same problem, different scope." },
+      a:"When multiple threads touch shared mutable state, you get **race conditions** — the same core problem as the double-booking in my hotel booking case, just in-process. Tools, cheapest first:\n\n- **`lock`** — the everyday mutex; only one thread at a time in the block:\n  ```csharp\n  lock (_gate) { _balance += amount; }\n  ```\n  Lock on a private `readonly object`, never on `this` or a public object. Keep the critical section tiny.\n- **`Interlocked`** — lock-free atomic operations for simple counters: `Interlocked.Increment(ref _count)`. Faster than a lock for a single operation.\n- **Concurrent collections** — `ConcurrentDictionary`, `ConcurrentQueue`, etc. are built to be used safely from many threads without your own locking.\n- **`SemaphoreSlim`** — like a lock but supports **async** (`await sem.WaitAsync()`), since you can't `await` inside a `lock`.\n\nInterview link: my in-app mutex was the single-instance version of this; across servers you'd push the guarantee into the database. Same problem, different scope." },
 
     { id:"design-caching", cat:"design",
       prompt:"Caching — the cache-aside pattern, Redis, and invalidation?",
@@ -637,7 +637,7 @@
 
     { id:"design-clean-arch", cat:"design",
       prompt:"Layered / clean architecture — what is it and why bother?",
-      a:"The idea: separate code into **layers with a one-way dependency rule**, so business logic doesn't depend on infrastructure.\n\nA typical layering:\n- **Domain / Core** — entities and business rules. Depends on nothing.\n- **Application** — use cases, service interfaces, orchestration.\n- **Infrastructure** — EF Core, HTTP clients, the file system — the concrete implementations.\n- **Presentation** — API controllers / UI.\n\n**Clean/Onion architecture** adds the **dependency-inversion** twist: dependencies point **inward**, toward the domain. Outer layers depend on inner ones, never the reverse. The domain defines an `IRoomRepository` **interface**; infrastructure implements it. So you can swap the database or framework without touching business rules, and you can test the core in isolation.\n\nMy Finago backend was a lighter version of this: **thin routes → services (logic) → entities**, with routes depending on services, not the other way round. The payoff: the interesting logic lives in one place, testable and framework-agnostic. The cost: more indirection — so match the ceremony to the size of the project." },
+      a:"The idea: separate code into **layers with a one-way dependency rule**, so business logic doesn't depend on infrastructure.\n\nA typical layering:\n- **Domain / Core** — entities and business rules. Depends on nothing.\n- **Application** — use cases, service interfaces, orchestration.\n- **Infrastructure** — EF Core, HTTP clients, the file system — the concrete implementations.\n- **Presentation** — API controllers / UI.\n\n**Clean/Onion architecture** adds the **dependency-inversion** twist: dependencies point **inward**, toward the domain. Outer layers depend on inner ones, never the reverse. The domain defines an `IRoomRepository` **interface**; infrastructure implements it. So you can swap the database or framework without touching business rules, and you can test the core in isolation.\n\nMy hotel booking backend was a lighter version of this: **thin routes → services (logic) → entities**, with routes depending on services, not the other way round. The payoff: the interesting logic lives in one place, testable and framework-agnostic. The cost: more indirection — so match the ceremony to the size of the project." },
 
     { id:"design-micro-mono", cat:"design",
       prompt:"Microservices vs monolith (and API gateway / service discovery)?",
@@ -1713,7 +1713,7 @@ null
      ════════════════════════════════════════════════════════ */
   function buildCatOptions() {
     var GROUPS = [
-      ["Finago Case", ["finago"]],
+      ["Hotel Booking Case", ["finago"]],
       ["C# / .NET", ["lang", "oop", "async", "linq", "data", "aspnet", "test"]],
       ["Node / TypeScript", ["node"]],
       ["General", ["sql", "k8s", "azure", "design"]],
