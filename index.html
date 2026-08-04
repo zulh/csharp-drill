@@ -155,9 +155,45 @@
   /* ── Main ───────────────────────────────────────────── */
   main {
     flex: 1 1 auto; width: 100%;
-    max-width: 900px; margin: 0 auto;
+    max-width: 1200px; margin: 0 auto;
     padding: 22px 22px 40px;
-    display: flex; flex-direction: column;
+    display: grid;
+    grid-template-columns: 256px minmax(0, 1fr);
+    gap: 26px;
+    align-items: start;
+  }
+
+  /* ── Question navigator (left sidebar, desktop) ─────── */
+  .qnav {
+    position: sticky; top: 96px; align-self: start;
+    max-height: calc(100vh - 120px); overflow-y: auto;
+    border: 1px solid var(--line); border-radius: 14px;
+    background: var(--surface); padding: 8px;
+  }
+  .qnav-head {
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--faint); padding: 8px 10px 10px;
+  }
+  .qnav-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+  .qnav-item {
+    display: flex; gap: 9px; width: 100%; text-align: left; cursor: pointer;
+    background: none; border: none; padding: 8px 10px; border-radius: 9px;
+    color: var(--muted); font-family: var(--sans); font-size: 13px; line-height: 1.4;
+  }
+  .qnav-item:hover { background: var(--accent-soft); color: var(--ink); }
+  .qnav-item.active { background: var(--accent-soft); color: var(--ink); font-weight: 600; }
+  .qnav-num {
+    font-family: var(--mono); font-size: 11px; color: var(--faint);
+    flex: none; min-width: 1.5em; text-align: right; padding-top: 1px;
+    font-variant-numeric: tabular-nums;
+  }
+  .qnav-item.active .qnav-num { color: var(--accent-strong); }
+  .qnav-text { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .qnav-empty { color: var(--faint); font-size: 13px; padding: 10px; }
+
+  @media (max-width: 880px) {
+    main { grid-template-columns: 1fr; max-width: 900px; }
+    .qnav { display: none; }
   }
 
   .card {
@@ -417,6 +453,7 @@
 </header>
 
 <main>
+  <aside class="qnav" id="qnav" aria-label="Question navigator"><!-- rendered --></aside>
   <div class="card" id="card"><!-- rendered --></div>
 </main>
 
@@ -1536,6 +1573,7 @@ null
      ════════════════════════════════════════════════════════ */
   var el = {
     card: document.getElementById("card"),
+    qnav: document.getElementById("qnav"),
     cat: document.getElementById("cat"),
     theme: document.getElementById("theme"),
     modeNotes: document.getElementById("mode-notes"),
@@ -1666,6 +1704,51 @@ null
     return h;
   }
 
+  // Left sidebar: every question in the current filter, click to jump.
+  var navSig = "";
+  function renderNav() {
+    if (!el.qnav) return;
+    var items, activeIdx, jump;
+    if (state.mode === "notes") {
+      items = notesDeck.map(function (it) {
+        return (it.body.split("\n")[0] || "").replace(/^#+\s*/, "");
+      });
+      activeIdx = noteIdx;
+      jump = function (i) { noteFlipped = false; noteIdx = i; renderNotes(); };
+    } else {
+      items = deck.map(function (q) { return q.prompt; });
+      activeIdx = idx;
+      jump = function (i) { idx = i; render(); };
+    }
+    el.qnav._jump = jump;
+
+    var sig = state.mode + "|" + state.cat + "|" + items.length + "|" + (items[0] || "");
+    if (sig !== navSig) {
+      navSig = sig;
+      var html;
+      if (!items.length) {
+        html = '<div class="qnav-empty">No questions in this filter.</div>';
+      } else {
+        html = '<div class="qnav-head">' + items.length + ' question' + (items.length > 1 ? "s" : "") + '</div><ul class="qnav-list">';
+        items.forEach(function (label, i) {
+          html += '<li><button class="qnav-item" data-i="' + i + '"><span class="qnav-num">' + (i + 1) +
+            '</span><span class="qnav-text">' + inline(label) + '</span></button></li>';
+        });
+        html += '</ul>';
+      }
+      el.qnav.innerHTML = html;
+      Array.prototype.forEach.call(el.qnav.querySelectorAll(".qnav-item"), function (b) {
+        b.onclick = function () { el.qnav._jump(parseInt(b.getAttribute("data-i"), 10)); };
+      });
+    }
+
+    Array.prototype.forEach.call(el.qnav.querySelectorAll(".qnav-item"), function (b) {
+      var on = parseInt(b.getAttribute("data-i"), 10) === activeIdx;
+      b.classList.toggle("active", on);
+      if (on) b.scrollIntoView({ block: "nearest" });
+    });
+  }
+
   function render() {
     revealed = false; answered = false;
 
@@ -1677,6 +1760,7 @@ null
         '<p class="prompt">No cards in this filter.</p>' +
         '<p class="say">Pick another category above, or reset progress.</p>';
       updateStats();
+      renderNav();
       return;
     }
     if (idx >= deck.length) { buildDeck(); }   // loop the pass, re-sorted by new boxes
@@ -1687,6 +1771,7 @@ null
     if (state.mode === "quiz") renderQuiz(q, p);
     else renderRecall(q, p);
     updateStats();
+    renderNav();
   }
 
   function renderNotes() {
@@ -1694,6 +1779,7 @@ null
       el.card.innerHTML = '<div class="card-top"><span class="chip">empty</span></div>' +
         '<p class="prompt">Notes for this section are coming soon.</p>';
       el.statsNotes.textContent = "";
+      renderNav();
       return;
     }
     if (noteIdx < 0) noteIdx = 0;
@@ -1740,6 +1826,7 @@ null
 
     el.statsNotes.textContent = (state.cat === "all" ? "All sections" : CATS[state.cat]) +
       " — flip to rehearse aloud";
+    renderNav();
     window.scrollTo({ top: 0, behavior: prefersMotion() ? "smooth" : "auto" });
   }
 
